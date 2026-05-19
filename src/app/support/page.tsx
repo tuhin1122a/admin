@@ -70,6 +70,7 @@ const SupportPage: React.FC = () => {
   };
 
   // Initial fetch for users
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchUsers();
     const interval = setInterval(() => {
@@ -82,6 +83,7 @@ const SupportPage: React.FC = () => {
   }, []);
 
   // Sync search query
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
       fetchUsers(searchQuery);
@@ -90,6 +92,7 @@ const SupportPage: React.FC = () => {
   }, [searchQuery]);
 
   // Sync messages for selected user
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (selectedUser) {
       setIsLoadingMessages(true);
@@ -246,52 +249,58 @@ const SupportPage: React.FC = () => {
 
             {/* Chat message list */}
             <ScrollArea className="flex-1 p-4 bg-gray-50/50">
-              <div className="flex flex-col gap-3">
-                {messages.map((msg, index) => {
-                  const isAgent = msg.senderId !== selectedUser.id;
-                  return (
-                    <div
-                      key={msg.id || index}
-                      className={`flex items-end gap-2 ${
-                        isAgent ? "justify-end" : "justify-start"
-                      }`}
-                    >
-                      {!isAgent && (
-                        <Avatar className="w-6 h-6 border">
-                          <AvatarImage src={`https://api.dicebear.com/7.x/bottts/svg?seed=${selectedUser.playerId}`} />
-                          <AvatarFallback>U</AvatarFallback>
-                        </Avatar>
-                      )}
+              {isLoadingMessages && messages.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-gray-400">
+                  <i className="fas fa-spinner animate-spin text-xl mr-2"></i> Loading messages...
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {messages.map((msg, index) => {
+                    const isAgent = msg.senderId !== selectedUser.id;
+                    return (
                       <div
-                        className={`max-w-[70%] p-3 rounded-xl shadow-sm text-sm ${
-                          isAgent
-                            ? "bg-blue-600 text-white rounded-br-none"
-                            : "bg-white text-gray-800 border rounded-bl-none"
+                        key={msg.id || index}
+                        className={`flex items-end gap-2 ${
+                          isAgent ? "justify-end" : "justify-start"
                         }`}
                       >
-                        <p className="break-words whitespace-pre-wrap">{msg.content}</p>
-                        <span
-                          className={`text-[9px] block mt-1 text-right leading-none ${
-                            isAgent ? "text-blue-200" : "text-gray-400"
+                        {!isAgent && (
+                          <Avatar className="w-6 h-6 border">
+                            <AvatarImage src={`https://api.dicebear.com/7.x/bottts/svg?seed=${selectedUser.playerId}`} />
+                            <AvatarFallback>U</AvatarFallback>
+                          </Avatar>
+                        )}
+                        <div
+                          className={`max-w-[70%] p-3 rounded-xl shadow-sm text-sm ${
+                            isAgent
+                              ? "bg-blue-600 text-white rounded-br-none"
+                              : "bg-white text-gray-800 border rounded-bl-none"
                           }`}
                         >
-                          {new Date(msg.createdAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
+                          <p className="break-words whitespace-pre-wrap">{msg.content}</p>
+                          <span
+                            className={`text-[9px] block mt-1 text-right leading-none ${
+                              isAgent ? "text-blue-200" : "text-gray-400"
+                            }`}
+                          >
+                            {new Date(msg.createdAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                        {isAgent && (
+                          <Avatar className="w-6 h-6 border">
+                            <AvatarImage src="https://api.dicebear.com/7.x/bottts/svg?seed=support" />
+                            <AvatarFallback>SA</AvatarFallback>
+                          </Avatar>
+                        )}
                       </div>
-                      {isAgent && (
-                        <Avatar className="w-6 h-6 border">
-                          <AvatarImage src="https://api.dicebear.com/7.x/bottts/svg?seed=support" />
-                          <AvatarFallback>SA</AvatarFallback>
-                        </Avatar>
-                      )}
-                    </div>
-                  );
-                })}
-                <div ref={messagesEndRef} />
-              </div>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
             </ScrollArea>
 
             {/* Input field */}
