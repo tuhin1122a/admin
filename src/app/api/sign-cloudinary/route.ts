@@ -2,9 +2,9 @@ import cloudinary from "cloudinary";
 import { NextRequest } from "next/server";
 
 const cloudinaryConfig = cloudinary.v2.config({
-  cloud_name: process.env.CLOUDINARY_NAME,
-  api_key: process.env.CLOUDINARY_API,
-  api_secret: process.env.CLOUDINARY_SECRET,
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY || process.env.CLOUDINARY_API,
+  api_secret: process.env.CLOUDINARY_API_SECRET || process.env.CLOUDINARY_SECRET,
 });
 
 export const POST = async (req: NextRequest) => {
@@ -12,7 +12,7 @@ export const POST = async (req: NextRequest) => {
     const { timestamp } = await req.json();
     const signature = cloudinary.v2.utils.api_sign_request(
       { timestamp },
-      process.env.CLOUDINARY_SECRET!
+      (process.env.CLOUDINARY_API_SECRET || process.env.CLOUDINARY_SECRET)!
     );
 
     return Response.json(
