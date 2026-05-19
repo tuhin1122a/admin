@@ -328,6 +328,7 @@ const Menu = () => {
                 <li key={i}>
                   <Link
                     href={nav.link}
+                    prefetch={nav.link === "/api" ? false : undefined}
                     className={`w-full flex gap-2 items-center justify-start text-left  px-4 py-2 rounded-md ${
                       nav.isActive ? "bg-blue-600 hover:bg-blue-700" : ""
                     } !rounded-button whitespace-nowrap`}
