@@ -80,6 +80,13 @@ export const GET = async (
     );
     const latestTransactions = allTransactions.slice(0, 10);
 
+    const approvedDepositsCount = await db.deposit.count({
+      where: {
+        userId: user.id,
+        status: "APPROVED",
+      },
+    });
+
     return NextResponse.json({
       success: true,
       user,
@@ -88,6 +95,7 @@ export const GET = async (
         totalWithdraws,
         lastDeposits,
         lastWithdraws,
+        approvedDepositsCount,
       },
       bettingStatistics: {
         totalBet: 0,
@@ -99,6 +107,30 @@ export const GET = async (
     });
   } catch (error) {
     console.log(error);
+    return NextResponse.json({ error: INTERNAL_SERVER_ERROR }, { status: 500 });
+  }
+};
+
+export const PUT = async (
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) => {
+  try {
+    const { id } = await params;
+    const { signinBonus } = await req.json();
+
+    if (typeof signinBonus !== "boolean") {
+      return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
+    }
+
+    const updatedWallet = await db.wallet.update({
+      where: { userId: id },
+      data: { signinBonus },
+    });
+
+    return NextResponse.json({ success: true, wallet: updatedWallet });
+  } catch (error) {
+    console.error("Failed to update wallet signinBonus:", error);
     return NextResponse.json({ error: INTERNAL_SERVER_ERROR }, { status: 500 });
   }
 };

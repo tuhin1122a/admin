@@ -37,6 +37,7 @@ export interface FetchUserOutput {
     totalWithdraws: number;
     lastDeposits: number;
     lastWithdraws: number;
+    approvedDepositsCount: number;
   };
   bettingStatistics: {
     totalBet: number;

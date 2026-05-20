@@ -134,6 +134,7 @@ export const PUT = async (req: Request) => {
         data: {
           balance: { increment: deposit.amount },
           turnOver: { increment: deposit.amount },
+          signinBonus: false,
         },
       });
 
@@ -174,28 +175,35 @@ export const PUT = async (req: Request) => {
       });
 
       if (lastReward && +deposit.amount >= lastReward.prize) {
-        await db.deposit.update({
-          where: {
-            id: deposit.id,
-          },
-          data: {
-            ClaimedSigninReward: {
-              create: {
-                user: {
-                  connect: {
-                    id: deposit.userId,
-                  },
-                },
-                reward: {
-                  connect: {
-                    id: lastReward!.id,
-                  },
-                },
-              },
-            },
-          },
-        });
+  // Check if a claimed reward already exists for this user and deposit
+  const existingClaim = await db.claimedSigninReward.findFirst({
+    where: {
+      userId: deposit.userId,
+      depositId: deposit.id,
+    },
+  });
+
+  if (!existingClaim) {
+    try {
+      await db.claimedSigninReward.create({
+        data: {
+          userId: deposit.userId,
+          rewardId: lastReward!.id,
+          depositId: deposit.id,
+        },
+      });
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002"
+      ) {
+        // Unique constraint violation: another request created it concurrently — ignore
+      } else {
+        throw e;
       }
+    }
+  }
+}
     } else if (actionType == "reject") {
       payload.status = "REJECTED";
       // handle any message notification

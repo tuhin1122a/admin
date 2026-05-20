@@ -29,6 +29,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   useFetchUserQuery,
   useSuspensionMutation,
+  useUpdateSigninBonusMutation,
 } from "@/lib/features/usersApiSlice";
 import CookieLoader from "@/components/loaders/cookie-loader";
 import moment from "moment";
@@ -48,6 +49,8 @@ const Details = ({ userId }: { userId: string }) => {
 
   const [suspensionApi, { isLoading: suspensionLoading }] =
     useSuspensionMutation();
+  const [updateSigninBonus, { isLoading: toggleLoading }] =
+    useUpdateSigninBonusMutation();
 
   const [rechargeAmount, setRechargeAmount] = useState("");
   const [notificationMessage, setNotificationMessage] = useState("");
@@ -141,6 +144,25 @@ const Details = ({ userId }: { userId: string }) => {
       })
       .catch((error: any) => {
         if (error.data.error) {
+          toast.error(error.data.error);
+        } else {
+          toast.error(INTERNAL_SERVER_ERROR);
+        }
+      });
+  };
+
+  const handleToggleSigninBonus = () => {
+    if (!user) return;
+    const nextStatus = !user.wallet?.signinBonus;
+    updateSigninBonus({ id: user.id, signinBonus: nextStatus })
+      .unwrap()
+      .then((res) => {
+        if (res.success) {
+          toast.success(`First deposit bonus has been ${nextStatus ? "activated" : "deactivated"} for this user.`);
+        }
+      })
+      .catch((error: any) => {
+        if (error?.data?.error) {
           toast.error(error.data.error);
         } else {
           toast.error(INTERNAL_SERVER_ERROR);
@@ -258,11 +280,40 @@ const Details = ({ userId }: { userId: string }) => {
                       {user!.isBanned ? "Banned" : "Active"}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                   <div className="flex justify-between">
                     <span className="text-[#9CA3AF]">Current Balance:</span>
                     <span className="font-bold text-[#007AFF]">
                       {+user!.wallet!.balance}
                     </span>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-[#9CA3AF]">First Deposit Bonus:</span>
+                    <div className="flex items-center gap-1.5">
+                      {financialOverview?.approvedDepositsCount === 0 ? (
+                        <Badge className="bg-emerald-600/20 text-emerald-500 border border-emerald-500/30 hover:bg-emerald-600/20 text-[10px] px-1.5 py-0.5">
+                          Active (New User)
+                        </Badge>
+                      ) : user?.wallet?.signinBonus ? (
+                        <Badge className="bg-blue-600/20 text-blue-500 border border-blue-500/30 hover:bg-blue-600/20 text-[10px] px-1.5 py-0.5">
+                          Active (Override)
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-800 text-[10px] px-1.5 py-0.5">
+                          Inactive
+                        </Badge>
+                      )}
+                      {(financialOverview?.approvedDepositsCount ?? 0) > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={toggleLoading}
+                          onClick={handleToggleSigninBonus}
+                          className="h-5 px-1.5 text-[9px] uppercase font-bold border border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white !rounded cursor-pointer"
+                        >
+                          {user?.wallet?.signinBonus ? "Disable" : "Enable"}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <Separator className="bg-gray-800" />
                   <div className="flex justify-between items-center">

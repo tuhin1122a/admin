@@ -6,11 +6,14 @@ import { CredentialsSignin } from "next-auth";
 export const signInAction = async (data: SigninSchema) => {
   try {
     const { email, password } = data;
-    await signIn("credentials", {
+    const result = await signIn("credentials", {
       email,
       password,
-      redirectTo: "/",
+      redirect: false,
     });
+    if (result?.error) {
+      return { error: result.error };
+    }
 
     return { success: true };
   } catch (error) {

@@ -87,12 +87,14 @@ model ClaimedSigninReward {
   id        String             @id @default(cuid())
   rewardId  String
   reward    SigninBonusRewards @relation(fields: [rewardId], references: [id])
-  userId    String             @unique
+  userId    String
   user      User               @relation(fields: [userId], references: [id])
   createdAt DateTime           @default(now())
-  depositId String             @unique
+  depositId String
   deposit   Deposit?           @relation(fields: [depositId], references: [id])
   isClamed  Boolean            @default(false)
+
+  @@unique([userId, depositId])
 }
 
 model ClaimedInvitationReward {

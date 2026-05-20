@@ -33,6 +33,15 @@ const usersApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ["users"],
     }),
 
+    updateSigninBonus: builder.mutation<{ success: true }, { id: string; signinBonus: boolean }>({
+      query: ({ id, signinBonus }) => ({
+        url: `/api/users/${id}`,
+        method: "PUT",
+        body: { signinBonus },
+      }),
+      invalidatesTags: ["users"],
+    }),
+
     searchUsers: builder.query({
       query: (query: string) => `/api/add-balance?query=${query}`,
     }),
@@ -43,5 +52,6 @@ export const {
   useFetchUsersQuery,
   useFetchUserQuery,
   useSuspensionMutation,
+  useUpdateSigninBonusMutation,
   useSearchUsersQuery,
 } = usersApiSlice;
