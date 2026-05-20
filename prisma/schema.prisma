@@ -90,7 +90,7 @@ model ClaimedSigninReward {
   userId    String
   user      User               @relation(fields: [userId], references: [id])
   createdAt DateTime           @default(now())
-  depositId String
+  depositId String             @unique
   deposit   Deposit?           @relation(fields: [depositId], references: [id])
   isClamed  Boolean            @default(false)
 
