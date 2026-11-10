@@ -18,6 +18,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Admin",
   description: "Admin Panle",
@@ -28,8 +30,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const admin = await findCurrentUser();
-  const session = await auth();
+  const admin = await findCurrentUser().catch(() => null);
+  const session = await auth().catch(() => null);
   return (
     <html lang="en">
       <head>

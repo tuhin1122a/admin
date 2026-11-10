@@ -5,7 +5,9 @@ import authConfig from "./auth.config";
 export const { signIn, signOut, auth, handlers } = NextAuth({
   trustHost: true,
   ...authConfig,
-  secret: process.env.AUTH_SECRET,
+  secret:
+    process.env.AUTH_SECRET ||
+    "e937d57fc5ad23b7235db0e9cc8e3a2dcf0251918a09cfbe56df0473b185faef",
   session: {
     strategy: "jwt",
   },
