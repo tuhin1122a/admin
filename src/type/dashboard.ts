@@ -33,6 +33,16 @@ export type PeriodStats = {
   allTime: number;
 };
 
+export type SubAdminDashboardInfo = {
+  isSubAdmin: boolean;
+  agentCode: string;
+  commissionRate: number;
+  phone: string;
+  referralLink: string;
+  commissionEarned: number;
+  myBankingCount: number;
+};
+
 export type DashboardOverviewResponse = {
   totalUsers: PeriodStats;
   activeUsers: PeriodStats;
@@ -41,6 +51,9 @@ export type DashboardOverviewResponse = {
   payoutsIssued: PeriodStats;
   pendingWithdrawals: PeriodStats;
   successDeposits: PeriodStats;
+  totalUserWalletBalance?: number;
+  netAdminBalance?: PeriodStats;
+  subAdminInfo?: SubAdminDashboardInfo | null;
   conversionRate: number;
   revenue: number;
   depositWithdraw: DepositsWithdrawalsStat;

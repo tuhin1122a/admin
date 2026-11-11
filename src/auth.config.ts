@@ -20,14 +20,26 @@ export default {
           throw new Error("Invalid Input Type");
         }
 
-        const account = await db.admin.findUnique({
+        const identifier = user.trim();
+
+        // Support login by email, agentCode, or phone
+        const account = await db.admin.findFirst({
           where: {
-            email: user,
+            OR: [
+              { email: identifier.toLowerCase() },
+              { agentCode: identifier.toUpperCase() },
+              { phone: identifier },
+            ],
           },
         });
 
         if (!account) {
           throw new Error("Invalid Credentials");
+        }
+
+        // Sub-Admin account active check
+        if (account.role === "SUBADMIN" && account.isActive === false) {
+          throw new Error("Your account has been deactivated. Contact admin.");
         }
 
         const passwordIsMatch = await bcrypt.compare(
@@ -38,7 +50,15 @@ export default {
         if (!passwordIsMatch) {
           throw new Error("Invalid Credentials");
         }
-        return account;
+
+        // Return all needed fields explicitly for JWT token
+        return {
+          id: account.id,
+          name: account.name,
+          email: account.email,
+          role: account.role,
+          agentCode: account.agentCode,
+        };
       },
     }),
   ],

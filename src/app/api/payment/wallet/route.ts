@@ -3,11 +3,19 @@ import { db } from "@/lib/db";
 import { WalletCreateInput, WalletUpdateInput } from "@/type/payment";
 import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
 
 export const POST = async (req: NextRequest) => {
   try {
-    const { walletLogo, walletName, walletType, wallets, isActive } =
-      (await req.json()) as WalletCreateInput;
+    const session = await auth();
+    const currentRole = (session?.user as any)?.role;
+    const currentAdminId = session?.user?.id;
+
+    const body = (await req.json()) as WalletCreateInput & { subAdminId?: string };
+    const { walletLogo, walletName, walletType, wallets, isActive, subAdminId } = body;
+
+    const effectiveSubAdminId =
+      currentRole === "SUBADMIN" ? currentAdminId : subAdminId || null;
 
     const existingWallet = await db.paymentWallet.findMany({
       where: {
@@ -31,6 +39,7 @@ export const POST = async (req: NextRequest) => {
         walletsNumber: {
           hasSome: wallets,
         },
+        subAdminId: effectiveSubAdminId,
       },
     });
 
@@ -38,7 +47,7 @@ export const POST = async (req: NextRequest) => {
       return Response.json(
         {
           error:
-            "Wallet Number is already availabel with a same Payment wallet type",
+            "Wallet Number is already available with the same Payment wallet type",
         },
         { status: 400 }
       );
@@ -73,6 +82,7 @@ export const POST = async (req: NextRequest) => {
         minDeposit: 0.0,
         maximumDeposit: 0.0,
         isActive,
+        subAdminId: effectiveSubAdminId,
       },
     });
 
@@ -83,19 +93,66 @@ export const POST = async (req: NextRequest) => {
   }
 };
 
-export const GET = async () => {
+export const GET = async (req: NextRequest) => {
   try {
-    const paymentWallets = await db.paymentWallet.findMany({
-      where: {},
-    });
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
+    const agentCode = searchParams.get("agentCode");
+    const subAdminIdParam = searchParams.get("subAdminId");
 
-    const depositsWallets = await db.depositWallet.findMany({ where: {} });
+    const session = await auth();
+    const currentRole = (session?.user as any)?.role;
+    const currentAdminId = session?.user?.id;
+
+    let targetSubAdminId: string | null = null;
+
+    if (currentRole === "SUBADMIN") {
+      targetSubAdminId = currentAdminId || null;
+    } else if (subAdminIdParam) {
+      targetSubAdminId = subAdminIdParam;
+    } else if (agentCode) {
+      const agent = await db.admin.findUnique({
+        where: { agentCode: agentCode.trim().toUpperCase() },
+      });
+      if (agent) targetSubAdminId = agent.id;
+    } else if (userId) {
+      const user = await db.user.findFirst({
+        where: {
+          OR: [{ id: userId }, { playerId: userId }, { phone: userId }],
+        },
+        select: { subAdminId: true },
+      });
+      if (user?.subAdminId) targetSubAdminId = user.subAdminId;
+    }
+
+    const paymentWallets = await db.paymentWallet.findMany();
+
+    let depositsWallets: any[] = [];
+    if (targetSubAdminId) {
+      // Find sub-admin's custom wallets
+      depositsWallets = await db.depositWallet.findMany({
+        where: { subAdminId: targetSubAdminId },
+      });
+      // Fallback to default if sub-admin hasn't configured custom wallets yet (for players)
+      if (depositsWallets.length === 0 && !session?.user) {
+        depositsWallets = await db.depositWallet.findMany({
+          where: { subAdminId: null },
+        });
+      }
+    } else if (currentRole === "ADMIN") {
+      // Super admin sees all wallets
+      depositsWallets = await db.depositWallet.findMany();
+    } else {
+      // Default platform wallets (for direct users)
+      depositsWallets = await db.depositWallet.findMany({
+        where: { subAdminId: null },
+      });
+    }
 
     const allWallets = depositsWallets.map((dw) => {
       const paymentWallet = paymentWallets.find(
         (w) => w.id === dw.paymentWalletId
       );
-
       return { ...dw, paymentWallet };
     });
 

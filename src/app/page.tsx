@@ -16,6 +16,8 @@ import Statistics from "@/components/home/statistics";
 import CookieLoader from "@/components/loaders/cookie-loader";
 import DepositWithdrowChart from "@/components/home/dp-wp-chart";
 import ChartFilter from "@/components/home/chart-filter";
+import SoftApiStatusBanner from "@/components/home/softapi-status-banner";
+import SubAdminHeader from "@/components/home/sub-admin-header";
 const App: React.FC = () => {
   const [paymentChartFilter, setPaymentChartFilter] = useState("7days");
 
@@ -247,7 +249,9 @@ const App: React.FC = () => {
       {data && !isLoading && (
         <div className="  min-h-screen">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Dashboard Overview</h2>
+            <h2 className="text-2xl font-bold">
+              {data?.subAdminInfo?.isSubAdmin ? "Agency Overview" : "Dashboard Overview"}
+            </h2>
             <div className="flex items-center space-x-2">
               <Popover>
                 <PopoverTrigger asChild>
@@ -286,6 +290,15 @@ const App: React.FC = () => {
               </Button>
             </div>
           </div>
+
+          {/* If sub-admin, show their Agency Header with referral link & stats */}
+          {data?.subAdminInfo?.isSubAdmin && (
+            <SubAdminHeader info={data.subAdminInfo} />
+          )}
+
+          {/* SoftAPI Casino Status & GGR Wallet Banner - Super Admin only */}
+          {!data?.subAdminInfo?.isSubAdmin && <SoftApiStatusBanner />}
+
           {/* Stats Cards */}
           <Statistics
             totalUsers={data?.totalUsers}
@@ -295,6 +308,9 @@ const App: React.FC = () => {
             pendingWithdrawals={data?.pendingWithdrawals}
             successDeposits={data?.successDeposits}
             totalRevenue={data?.totalRevenue}
+            netAdminBalance={data?.netAdminBalance}
+            totalUserWalletBalance={data?.totalUserWalletBalance}
+            subAdminInfo={data?.subAdminInfo}
           />
           {/* Charts Section */}
           {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

@@ -27,6 +27,8 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.softapi-config.json
+.softapi-callbacks.json
 
 # vercel
 .vercel

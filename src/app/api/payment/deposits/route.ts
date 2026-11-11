@@ -1,10 +1,15 @@
 import { INTERNAL_SERVER_ERROR } from "@/error";
 import { db } from "@/lib/db";
+import { auth } from "@/auth";
 import { DepositApprovalInput } from "@/type/payment";
 import { DepositStatus, Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
+  const session = await auth();
+  const currentRole = (session?.user as any)?.role;
+  const currentAdminId = session?.user?.id;
+
   const { searchParams } = new URL(req.url);
 
   const search = searchParams.get("search");
@@ -19,6 +24,14 @@ export async function GET(req: Request) {
 
   // const cursor = searchParams.get("cursor");
   const where: Prisma.DepositWhereInput = { trxID: { not: null } };
+
+  // Sub-Admin can only view deposits from their own players
+  if (currentRole === "SUBADMIN" && currentAdminId) {
+    where.user = {
+      ...((where.user as any) || {}),
+      subAdminId: currentAdminId,
+    } as any;
+  }
 
   if (search) {
     where.OR = [

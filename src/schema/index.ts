@@ -27,11 +27,7 @@ export const paymentWalletUpdateSchema = zod.object({
 export const signinSchema = zod.object({
   email: zod
     .string()
-    .min(1, "Email is required")
-    .regex(
-      /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-      "Enter a valid Email"
-    ),
+    .min(1, "Email, Agent Code or Phone is required"),
   password: zod.string().min(1, "Password is required"),
 });
 

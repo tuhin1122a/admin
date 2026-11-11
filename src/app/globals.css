@@ -122,42 +122,141 @@
   }
 }
 
-.cookie-loader {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  border: 8px solid #d1914b;
-  box-sizing: border-box;
-  --c: no-repeat radial-gradient(farthest-side, #d64123 94%, #0000);
-  --b: no-repeat radial-gradient(farthest-side, #000 94%, #0000);
-  background: var(--c) 11px 15px, var(--b) 6px 15px, var(--c) 35px 23px,
-    var(--b) 29px 15px, var(--c) 11px 46px, var(--b) 11px 34px,
-    var(--c) 36px 0px, var(--b) 50px 31px, var(--c) 47px 43px,
-    var(--b) 31px 48px, #f6d353;
-  background-size: 15px 15px, 6px 6px;
-  animation: l4 3s infinite;
+/* Casino Roulette & Poker Chip Loader */
+.casino-loader-wrapper {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 0 18px rgba(245, 158, 11, 0.35));
 }
-@keyframes l4 {
+
+.casino-roulette-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    #dc2626 0deg 30deg,
+    #111827 30deg 60deg,
+    #dc2626 60deg 90deg,
+    #111827 90deg 120deg,
+    #10b981 120deg 150deg,
+    #dc2626 150deg 180deg,
+    #111827 180deg 210deg,
+    #dc2626 210deg 240deg,
+    #111827 240deg 270deg,
+    #dc2626 270deg 300deg,
+    #111827 300deg 330deg,
+    #f59e0b 330deg 360deg
+  );
+  border: 3px solid #fbbf24;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.8), 0 0 15px rgba(251, 191, 36, 0.4);
+  animation: casino-spin 3.2s linear infinite;
+}
+
+.casino-chip-inner {
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  border: 4px dashed #fcd34d;
+  background: radial-gradient(circle, #1f2937 0%, #090d16 100%);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.9);
+  animation: casino-spin-reverse 2.4s linear infinite;
+}
+
+.casino-center-core {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #111827 0%, #1e293b 100%);
+  border: 2px solid #f59e0b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 8px rgba(245, 158, 11, 0.4);
+  z-index: 2;
+}
+
+.casino-suit {
+  position: absolute;
+  font-size: 22px;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(0.5);
+  animation: suit-cycle 3.2s infinite ease-in-out;
+}
+
+.suit-spade {
+  color: #f8fafc;
+  text-shadow: 0 0 8px rgba(248, 250, 252, 0.7);
+  animation-delay: 0s;
+}
+.suit-heart {
+  color: #f43f5e;
+  text-shadow: 0 0 8px rgba(244, 63, 94, 0.8);
+  animation-delay: 0.8s;
+}
+.suit-diamond {
+  color: #fbbf24;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.8);
+  animation-delay: 1.6s;
+}
+.suit-club {
+  color: #10b981;
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+  animation-delay: 2.4s;
+}
+
+.casino-ball-orbit {
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  animation: casino-spin-reverse 1.3s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  pointer-events: none;
+}
+
+.casino-ball {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ffffff, #cbd5e1 60%, #94a3b8);
+  box-shadow: 0 0 8px #ffffff, 0 0 14px #fbbf24;
+  margin: 0 auto;
+}
+
+@keyframes casino-spin {
   0% {
-    -webkit-mask: conic-gradient(#0000 0, #000 0);
-  }
-  16.67% {
-    -webkit-mask: conic-gradient(#0000 60deg, #000 0);
-  }
-  33.33% {
-    -webkit-mask: conic-gradient(#0000 120deg, #000 0);
-  }
-  50% {
-    -webkit-mask: conic-gradient(#0000 180deg, #000 0);
-  }
-  66.67% {
-    -webkit-mask: conic-gradient(#0000 240deg, #000 0);
-  }
-  83.33% {
-    -webkit-mask: conic-gradient(#0000 300deg, #000 0);
+    transform: rotate(0deg);
   }
   100% {
-    -webkit-mask: conic-gradient(#0000 360deg, #000 0);
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes casino-spin-reverse {
+  0% {
+    transform: rotate(360deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes suit-cycle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0.5) rotate(-15deg);
+  }
+  8%, 22% {
+    opacity: 1;
+    transform: scale(1.1) rotate(0deg);
+  }
+  28% {
+    opacity: 0;
+    transform: scale(0.6) rotate(15deg);
   }
 }
 

@@ -17,6 +17,11 @@ export const PUT = async (
 
     if (actionType == "BAN") {
       payload.isBanned = true;
+      // Zero out the wallet balance for the banned user
+      await db.wallet.updateMany({
+        where: { userId: id },
+        data: { balance: 0 },
+      });
     } else if (actionType == "UNBAN") {
       payload.isBanned = false;
     } else {

@@ -46,7 +46,7 @@ const Login = () => {
   return (
     <div className="fixed z-[1000] w-full h-screen flex justify-center items-center bg-background">
       <div className="w-[320px] md:w-[370px] lg:w-[420px] mx-auto mt-20 p-8 shadow-xl rounded-2xl border space-y-6">
-        <h1 className="text-2xl font-bold text-center">Admin Login</h1>
+        <h1 className="text-2xl font-bold text-center">Admin / Agent Login</h1>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
@@ -54,12 +54,12 @@ const Login = () => {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">Email / Agent Code / Phone</Label>
                   <FormControl>
                     <Input
                       disabled={pending}
                       id="email"
-                      placeholder="admin@example.com"
+                      placeholder="admin@example.com or SUB101"
                       {...field}
                     />
                   </FormControl>

@@ -30,221 +30,215 @@ import {
 } from "@/components/ui/collapsible";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import useCurrentUser from "@/hook/useCurrentUser";
 
-const nav = [
-  {
-    label: "Dashboard",
-    link: "/",
-    isActive: false,
-    icon: MdDashboard,
-  },
-  {
-    label: "Payment",
-    isActive: false,
-    icon: MdOutlinePayment,
-    subMenu: [
+const getNavItems = (isSubAdmin: boolean) => {
+  if (isSubAdmin) {
+    return [
       {
-        label: "Add Banking",
+        label: "Agency Dashboard",
+        link: "/",
+        isActive: false,
+        icon: MdDashboard,
+      },
+      {
+        label: "My Banking Numbers",
         link: "/add-banking",
         isActive: false,
         icon: CiBank,
       },
       {
-        label: "Deposits",
-        link: "/deposits",
+        label: "Player Transactions",
         isActive: false,
-        icon: PiHandDepositFill,
+        icon: MdOutlinePayment,
+        subMenu: [
+          {
+            label: "Player Deposits",
+            link: "/deposits",
+            isActive: false,
+            icon: PiHandDepositFill,
+          },
+          {
+            label: "Player Withdraws",
+            link: "/withdraws",
+            isActive: false,
+            icon: PiHandWithdrawFill,
+          },
+        ],
       },
       {
-        label: "Withdraws",
-        link: "/withdraws",
-        isActive: false,
-        icon: PiHandWithdrawFill,
-      },
-    ],
-  },
-  {
-    label: "Users",
-    isActive: false,
-    icon: HiMiniUsers,
-    subMenu: [
-      {
-        label: "All Users",
+        label: "My Players",
         link: "/users",
         isActive: false,
         icon: HiMiniUsers,
       },
-    ],
-  },
-  // {
-  //   label: "Agents",
-  //   isActive: false,
-  //   icon: MdSupportAgent,
-  //   subMenu: [
-  //     {
-  //       label: "Active Agents",
-  //       link: "/active-agents",
-  //       isActive: false,
-  //     },
-  //     {
-  //       label: "Requests",
-  //       link: "/agents-request",
-  //       isActive: false,
-  //     },
-  //     {
-  //       label: "Add Agents",
-  //       link: "/add-agents",
-  //       isActive: false,
-  //     },
-  //   ],
-  // },
-  // {
-  //   label: "PlatForm",
-  //   isActive: false,
-  //   icon: TbWorld,
-  //   subMenu: [
-  //     {
-  //       label: "Announcement",
-  //       link: "/announcement",
-  //       isActive: false,
-  //     },
-  //     {
-  //       label: "Features",
-  //       link: "/features",
-  //       isActive: false,
-  //     },
-  //     {
-  //       label: "Notice",
-  //       link: "/notice",
-  //       isActive: false,
-  //     },
-  //     {
-  //       label: "Contact",
-  //       link: "/contact",
-  //       isActive: false,
-  //     },
-  //     {
-  //       label: "Live Support",
-  //       link: "/live-support",
-  //       isActive: false,
-  //     },
-  //     {
-  //       label: "Promo",
-  //       link: "/promo",
-  //       isActive: false,
-  //     },
-  //   ],
-  // },
-  // {
-  //   label: "Rules",
-  //   isActive: false,
-  //   icon: FcRules,
-  //   subMenu: [
-  //     {
-  //       label: "Payment",
-  //       link: "/payment-rules",
-  //       isActive: false,
-  //     },
-  //     {
-  //       label: "Rewards",
-  //       link: "/payment-rules",
-  //       isActive: false,
-  //     },
-  //   ],
-  // },
-  {
-    label: "Platform",
-    isActive: false,
-    icon: GiPlatform,
-    subMenu: [
       {
-        label: "Site",
-        link: "/site",
+        label: "Referral & Profile",
+        link: "/sub-admins",
         isActive: false,
         icon: BiWorld,
       },
-    ],
-  },
-  {
-    label: "Setting",
-    isActive: false,
-    icon: FaGear,
-    subMenu: [
       {
-        label: "Account",
-        link: "/account",
+        label: "Setting",
         isActive: false,
-        icon: MdAccountCircle,
+        icon: FaGear,
+        subMenu: [
+          {
+            label: "Account",
+            link: "/account",
+            isActive: false,
+            icon: MdAccountCircle,
+          },
+          {
+            label: "Password",
+            link: "/account/password",
+            isActive: false,
+            icon: PiPasswordBold,
+          },
+        ],
       },
       {
-        label: "Password",
-        link: "/account/password",
+        label: "Support Line",
+        link: "/support",
         isActive: false,
-        icon: PiPasswordBold,
+        icon: IoChatbubbles,
       },
-      {
-        label: "Email",
-        link: "/account/email",
-        isActive: false,
-        icon: MdEmail,
-      },
-    ],
-  },
+    ];
+  }
 
-  {
-    label: "User Recharge",
-    link: "/recharge",
-    isActive: false,
-    icon: MdOutlineAccountBalanceWallet,
-  },
-  {
-    label: "API",
-    link: "/api",
-    isActive: false,
-    icon: IoMdCode,
-  },
-  {
-    label: "Support Line",
-    link: "/support",
-    isActive: false,
-    icon: IoChatbubbles,
-  },
-];
+  // Super Admin nav (All items)
+  return [
+    {
+      label: "Dashboard",
+      link: "/",
+      isActive: false,
+      icon: MdDashboard,
+    },
+    {
+      label: "Payment",
+      isActive: false,
+      icon: MdOutlinePayment,
+      subMenu: [
+        {
+          label: "Add Banking",
+          link: "/add-banking",
+          isActive: false,
+          icon: CiBank,
+        },
+        {
+          label: "Deposits",
+          link: "/deposits",
+          isActive: false,
+          icon: PiHandDepositFill,
+        },
+        {
+          label: "Withdraws",
+          link: "/withdraws",
+          isActive: false,
+          icon: PiHandWithdrawFill,
+        },
+      ],
+    },
+    {
+      label: "Users",
+      isActive: false,
+      icon: HiMiniUsers,
+      subMenu: [
+        {
+          label: "All Users",
+          link: "/users",
+          isActive: false,
+          icon: HiMiniUsers,
+        },
+      ],
+    },
+    {
+      label: "Platform",
+      isActive: false,
+      icon: GiPlatform,
+      subMenu: [
+        {
+          label: "Site",
+          link: "/site",
+          isActive: false,
+          icon: BiWorld,
+        },
+        {
+          label: "Sub-Admins (Agents)",
+          link: "/sub-admins",
+          isActive: false,
+          icon: HiMiniUsers,
+        },
+      ],
+    },
+    {
+      label: "Setting",
+      isActive: false,
+      icon: FaGear,
+      subMenu: [
+        {
+          label: "Account",
+          link: "/account",
+          isActive: false,
+          icon: MdAccountCircle,
+        },
+        {
+          label: "Password",
+          link: "/account/password",
+          isActive: false,
+          icon: PiPasswordBold,
+        },
+        {
+          label: "Email",
+          link: "/account/email",
+          isActive: false,
+          icon: MdEmail,
+        },
+      ],
+    },
+    {
+      label: "User Recharge",
+      link: "/recharge",
+      isActive: false,
+      icon: MdOutlineAccountBalanceWallet,
+    },
+    {
+      label: "Casino SoftAPI",
+      link: "/casino-api",
+      isActive: false,
+      icon: IoMdCode,
+    },
+    {
+      label: "Support Line",
+      link: "/support",
+      isActive: false,
+      icon: IoChatbubbles,
+    },
+  ];
+};
 
 const Menu = () => {
   const pathname = usePathname();
-  const [toggledMenu, setToggledMenu] = useState("");
+  const currentUser = useCurrentUser();
+  const isSubAdmin = (currentUser as any)?.role === "SUBADMIN";
 
-  const [navData, setNavData] = useState(nav);
+  const [toggledMenu, setToggledMenu] = useState("");
+  const [navData, setNavData] = useState(() => getNavItems(false));
 
   useEffect(() => {
-    if (pathname) {
-      setNavData((state) => {
-        const newState = [...state];
-
-        newState.map((s) => {
-          if (s.subMenu) {
-            s.isActive =
-              s.subMenu.filter((item) => {
-                if (item.link == pathname) {
-                  item.isActive = true;
-                  return true;
-                } else {
-                  item.isActive = false;
-                  return false;
-                }
-              }).length > 0
-                ? true
-                : false;
-          } else {
-            s.isActive = pathname == s.link;
-          }
+    const items = getNavItems(isSubAdmin);
+    items.forEach((s: any) => {
+      if (s.subMenu) {
+        s.isActive = s.subMenu.some((item: any) => item.link === pathname);
+        s.subMenu.forEach((item: any) => {
+          item.isActive = item.link === pathname;
         });
-
-        return newState;
-      });
-    }
-  }, [pathname]);
+      } else {
+        s.isActive = pathname === s.link;
+      }
+    });
+    setNavData(items);
+  }, [pathname, isSubAdmin]);
 
   return (
     <aside

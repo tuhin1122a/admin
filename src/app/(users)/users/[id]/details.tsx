@@ -46,6 +46,8 @@ const Details = ({ userId }: { userId: string }) => {
   const financialOverview = data?.financialOverview;
   const bettingStatistics = data?.bettingStatistics;
   const latestTransactions = data?.latestTransactions;
+  const betHistory = data?.betHistory;
+  const [betFilter, setBetFilter] = useState<"ALL" | "WIN" | "LOSS">("ALL");
 
   const [suspensionApi, { isLoading: suspensionLoading }] =
     useSuspensionMutation();
@@ -406,76 +408,236 @@ const Details = ({ userId }: { userId: string }) => {
 
           {/* Betting Statistics */}
           <div className="mb-8">
-            <h3 className="text-xl font-bold mb-4">Betting Statistics</h3>
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              <Card className="bg-primary border-gray-800">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-white">Casino Betting Overview</h3>
+                <p className="text-xs text-gray-400">Total turnover, winnings and player performance metrics</p>
+              </div>
+              <Link href="/casino-api">
+                <Button size="sm" variant="outline" className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10 text-xs">
+                  Give Free Spins (PG/PP/JILI)
+                </Button>
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="bg-gray-900 border-gray-800">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Total Bets</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-400">Total Bets (Stake)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">
-                    {bettingStatistics?.totalBet}
+                  <p className="text-2xl font-bold font-mono text-amber-400">
+                    ৳ {Number(bettingStatistics?.totalBet ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </p>
+                  <p className="text-[11px] text-gray-500 mt-1">Total wagered amount</p>
                 </CardContent>
               </Card>
 
-              <Card className="bg-primary border-gray-800">
+              <Card className="bg-gray-900 border-gray-800">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Total Wins</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-400">Total Wins (Payout)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold text-green-500">
-                    {bettingStatistics?.totalWin}
+                  <p className="text-2xl font-bold font-mono text-emerald-400">
+                    ৳ {Number(bettingStatistics?.totalWin ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </p>
+                  <p className="text-[11px] text-gray-500 mt-1">Returned to player</p>
                 </CardContent>
               </Card>
 
-              <Card className="bg-primary border-gray-800">
+              <Card className="bg-gray-900 border-gray-800">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Total Losses</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-400">Casino Net P/L</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold text-red-500">
-                    {bettingStatistics?.totalLosss}
-                  </p>
+                  {(() => {
+                    const net = Number(bettingStatistics?.totalBet ?? 0) - Number(bettingStatistics?.totalWin ?? 0);
+                    return (
+                      <>
+                        <p className={`text-2xl font-bold font-mono ${net >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {net >= 0 ? "+" : ""}৳ {net.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-[11px] text-gray-500 mt-1">
+                          {net >= 0 ? "Casino Profit from user" : "Casino Loss to user"}
+                        </p>
+                      </>
+                    );
+                  })()}
                 </CardContent>
               </Card>
 
-              <Card className="bg-primary border-gray-800">
+              <Card className="bg-gray-900 border-gray-800">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Win Rate</CardTitle>
+                  <CardTitle className="text-sm font-medium text-gray-400">Win Rate</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold text-[#007AFF]">
-                    {bettingStatistics?.winRate}%
+                  <p className="text-2xl font-bold font-mono text-sky-400">
+                    {bettingStatistics?.winRate ?? 0}%
                   </p>
                   <Progress
-                    value={bettingStatistics?.winRate}
-                    className="h-2 mt-2"
+                    value={Math.min(bettingStatistics?.winRate ?? 0, 100)}
+                    className="h-2 mt-2 bg-gray-800"
                   />
                 </CardContent>
               </Card>
             </div>
           </div>
 
-          {/* Betting Chart */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <Card className="bg-primary border-gray-800">
-              <CardHeader>
-                <CardTitle>Betting Performance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div id="bettingChart" className="h-[300px]"></div>
-              </CardContent>
-            </Card>
+          {/* Casino Bet History (Round-by-Round Breakdown) */}
+          <Card className="bg-gray-900 border-gray-800 mb-8">
+            <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-800 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-lg text-white">Casino Bet History (Game & Round Details)</CardTitle>
+                  <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs">
+                    {betHistory?.length ?? 0} Rounds Logged
+                  </Badge>
+                </div>
+                <CardDescription className="text-gray-400 mt-0.5 text-xs">
+                  Per-round game sessions, stakes, multipliers, and balance reconciliation from Seamless SoftAPI.
+                </CardDescription>
+              </div>
 
-            {/* Action Panel */}
-            <div className="space-y-6">
-              {/* Recharge Section */}
-              <Card
-                className="bg-primary border-gray-800"
-                id="recharge-section"
-              >
+              {/* Bet filter buttons */}
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={betFilter === "ALL" ? "default" : "outline"}
+                  onClick={() => setBetFilter("ALL")}
+                  className={`text-xs h-7 px-3 ${betFilter === "ALL" ? "bg-amber-500 text-black font-semibold" : "border-gray-700 bg-gray-800"}`}
+                >
+                  All Bets
+                </Button>
+                <Button
+                  size="sm"
+                  variant={betFilter === "WIN" ? "default" : "outline"}
+                  onClick={() => setBetFilter("WIN")}
+                  className={`text-xs h-7 px-3 ${betFilter === "WIN" ? "bg-emerald-600 text-white font-semibold" : "border-gray-700 bg-gray-800 text-emerald-400"}`}
+                >
+                  Wins Only
+                </Button>
+                <Button
+                  size="sm"
+                  variant={betFilter === "LOSS" ? "default" : "outline"}
+                  onClick={() => setBetFilter("LOSS")}
+                  className={`text-xs h-7 px-3 ${betFilter === "LOSS" ? "bg-rose-600 text-white font-semibold" : "border-gray-700 bg-gray-800 text-rose-400"}`}
+                >
+                  Losses Only
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-gray-800 hover:bg-transparent">
+                      <TableHead className="text-xs font-semibold text-gray-300">Round ID / Serial</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-300">Game & Provider</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-300">Stake (Bet)</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-300">Multiplier</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-300">Payout (Win)</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-300">Result</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-300">Balance After</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-300 text-right">Date & Time</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(() => {
+                      const filteredBets = (betHistory || []).filter((b) => {
+                        if (betFilter === "WIN") return b.status === "WIN";
+                        if (betFilter === "LOSS") return b.status === "LOSS";
+                        return true;
+                      });
+
+                      if (filteredBets.length === 0) {
+                        return (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-10 text-gray-500 text-sm">
+                              No betting history recorded for this user yet. When the user plays games (Aviator, Slots, Live Casino), each bet/settle round will automatically appear here!
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+
+                      return filteredBets.map((bet, idx) => (
+                        <TableRow key={idx} className="border-gray-800 hover:bg-gray-800/40">
+                          {/* Round ID */}
+                          <TableCell className="font-mono text-xs">
+                            <span className="text-white font-semibold" title={bet.serialNumber}>
+                              #{bet.gameRound || bet.serialNumber.slice(0, 16)}
+                            </span>
+                            {bet.freeSpinBonus && (
+                              <Badge className="ml-1.5 bg-purple-500/20 text-purple-300 border-purple-500/30 text-[10px] px-1 py-0">
+                                Spin: {bet.freeSpinBonus}
+                              </Badge>
+                            )}
+                          </TableCell>
+
+                          {/* Game Info */}
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-white text-xs">{bet.gameName}</span>
+                              <span className="text-[10px] text-gray-500 font-mono">UID: {bet.gameUid}</span>
+                            </div>
+                          </TableCell>
+
+                          {/* Stake */}
+                          <TableCell className="font-mono font-semibold text-amber-400 text-xs">
+                            ৳ {bet.betAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </TableCell>
+
+                          {/* Multiplier */}
+                          <TableCell className="font-mono text-xs">
+                            <span className={bet.multiplier > 1 ? "text-emerald-400 font-bold" : "text-gray-400"}>
+                              {bet.multiplier > 0 ? `${bet.multiplier.toFixed(2)}x` : "0.00x"}
+                            </span>
+                          </TableCell>
+
+                          {/* Payout */}
+                          <TableCell className="font-mono font-semibold text-xs">
+                            <span className={bet.winAmount > 0 ? "text-emerald-400" : "text-gray-500"}>
+                              ৳ {bet.winAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            </span>
+                          </TableCell>
+
+                          {/* Result */}
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={`text-[11px] font-semibold ${
+                                bet.status === "WIN"
+                                  ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
+                                  : bet.status === "REFUND"
+                                  ? "border-sky-500/40 text-sky-400 bg-sky-500/10"
+                                  : "border-rose-500/40 text-rose-400 bg-rose-500/10"
+                              }`}
+                            >
+                              {bet.status}
+                            </Badge>
+                          </TableCell>
+
+                          {/* Balance After */}
+                          <TableCell className="font-mono text-xs text-gray-300">
+                            ৳ {bet.creditAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                          </TableCell>
+
+                          {/* Date & Time */}
+                          <TableCell className="text-right text-xs text-gray-400 whitespace-nowrap">
+                            {moment(bet.createdAt).format("DD MMM, hh:mm:ss A")}
+                          </TableCell>
+                        </TableRow>
+                      ));
+                    })()}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Action Panels */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {/* Recharge Section */}
+            <Card className="bg-primary border-gray-800" id="recharge-section">
                 <CardHeader>
                   <CardTitle>Recharge Wallet</CardTitle>
                   <CardDescription className="text-[#9CA3AF]">
@@ -555,7 +717,6 @@ const Details = ({ userId }: { userId: string }) => {
                   </Button>
                 </CardFooter>
               </Card>
-            </div>
           </div>
 
           {/* Recent Transactions */}

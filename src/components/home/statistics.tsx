@@ -1,5 +1,5 @@
 "use client";
-import { PeriodStats } from "@/type/dashboard";
+import { PeriodStats, SubAdminDashboardInfo } from "@/type/dashboard";
 import React, { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
@@ -13,6 +13,9 @@ const Statistics = ({
   payoutsIssued,
   pendingWithdrawals,
   successDeposits,
+  netAdminBalance,
+  totalUserWalletBalance,
+  subAdminInfo,
 }: {
   totalUsers?: PeriodStats;
   activeUsers?: PeriodStats;
@@ -21,9 +24,71 @@ const Statistics = ({
   payoutsIssued?: PeriodStats;
   pendingWithdrawals?: PeriodStats;
   successDeposits?: PeriodStats;
+  netAdminBalance?: PeriodStats;
+  totalUserWalletBalance?: number;
+  subAdminInfo?: SubAdminDashboardInfo | null;
 }) => {
+  const isAgent = Boolean(subAdminInfo?.isSubAdmin);
+  const commRate = subAdminInfo?.commissionRate ?? 0;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      {isAgent && subAdminInfo && (
+        <StatisticsCard
+          data={{
+            allTime: subAdminInfo.commissionEarned,
+            last30Days:
+              Math.round(
+                Math.max(
+                  0,
+                  (netAdminBalance?.last30Days || 0) * (commRate / 100)
+                ) * 100
+              ) / 100,
+            last7Days:
+              Math.round(
+                Math.max(
+                  0,
+                  (netAdminBalance?.last7Days || 0) * (commRate / 100)
+                ) * 100
+              ) / 100,
+            bgColor: "bg-amber-500/10",
+            textColor: "text-amber-400",
+            icon: "fa-solid fa-trophy",
+            label: `My Commission Earned (${commRate}%)`,
+          }}
+        />
+      )}
+
+      {netAdminBalance && (
+        <StatisticsCard
+          data={{
+            ...netAdminBalance,
+            bgColor: "bg-yellow-500/10",
+            textColor: "text-yellow-500",
+            icon: "fa-solid fa-sack-dollar",
+            label: isAgent
+              ? "Agency Net Profit (Dep − Wd)"
+              : "My Balance (Deposit − Withdraw)",
+          }}
+        />
+      )}
+
+      {totalUserWalletBalance !== undefined && (
+        <StatisticsCard
+          data={{
+            allTime: totalUserWalletBalance,
+            last30Days: totalUserWalletBalance,
+            last7Days: totalUserWalletBalance,
+            bgColor: "bg-sky-500/10",
+            textColor: "text-sky-500",
+            icon: "fa-solid fa-wallet",
+            label: isAgent
+              ? "My Players' Total Wallet Balance"
+              : "Users' Total Wallet Balance",
+          }}
+        />
+      )}
+
       {totalUsers && (
         <StatisticsCard
           data={{
@@ -31,7 +96,7 @@ const Statistics = ({
             bgColor: "bg-blue-500/10",
             textColor: "text-blue-500",
             icon: "fa-solid fa-users",
-            label: "Total Users",
+            label: isAgent ? "My Total Players" : "Total Users",
           }}
         />
       )}
@@ -43,7 +108,7 @@ const Statistics = ({
             bgColor: "bg-green-500/10",
             textColor: "text-green-500",
             icon: "fa-solid fa-user-check",
-            label: "Active Users",
+            label: isAgent ? "My Active Players" : "Active Users",
           }}
         />
       )}
@@ -55,7 +120,7 @@ const Statistics = ({
             bgColor: "bg-red-500/10",
             textColor: "text-red-500",
             icon: "fa-solid fa-user-slash",
-            label: "Banned Users",
+            label: isAgent ? "Banned Players" : "Banned Users",
           }}
         />
       )}
@@ -67,7 +132,7 @@ const Statistics = ({
             bgColor: "bg-emerald-500/10",
             textColor: "text-emerald-500",
             icon: "fa-solid fa-money-bill-wave",
-            label: "Total Revenue",
+            label: isAgent ? "My Players' Total Deposits" : "Total Revenue",
           }}
         />
       )}
@@ -79,7 +144,9 @@ const Statistics = ({
             bgColor: "bg-purple-500/10",
             textColor: "text-purple-500",
             icon: "fa-solid fa-hand-holding-dollar",
-            label: "Total Revenue",
+            label: isAgent
+              ? "My Players' Total Withdraws"
+              : "Total Payouts (Withdraws)",
           }}
         />
       )}
@@ -91,12 +158,14 @@ const Statistics = ({
             bgColor: "bg-amber-500/10",
             textColor: "text-amber-500",
             icon: "fa-solid fa-clock",
-            label: "Total Revenue",
+            label: isAgent
+              ? "Pending Player Withdrawals"
+              : "Pending Withdrawals",
           }}
         />
       )}
 
-      {successDeposits && (
+      {successDeposits && !isAgent && (
         <StatisticsCard
           data={{
             ...successDeposits,

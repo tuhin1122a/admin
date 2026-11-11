@@ -3,9 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider          = "postgresql"
-  url               = env("DATABASE_URL")
-  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -40,6 +40,12 @@ model User {
   // Affiliate system relations
   affiliateReferrals AffiliateReferral[] @relation("AffiliateReferrals")
   affiliate          Affiliate?
+
+  // Sub-Admin (Master Agent) relation
+  subAdminId         String?
+  subAdmin           Admin?              @relation("SubAdminPlayers", fields: [subAdminId], references: [id])
+
+  @@index([subAdminId])
 }
 
 model BettingRecord {
@@ -154,6 +160,12 @@ model DepositWallet {
   maximumDeposit  Decimal   @db.Decimal(10, 2)
   isActive        Boolean   @default(true)
   deposits        Deposit[] @relation("WalletDeposits")
+
+  // Sub-Admin (Master Agent) custom wallet numbers
+  subAdminId      String?
+  subAdmin        Admin?    @relation("SubAdminWallets", fields: [subAdminId], references: [id])
+
+  @@index([subAdminId])
 }
 
 enum DepositStatus {
@@ -274,11 +286,19 @@ enum ManagementRole {
 }
 
 model Admin {
-  id       String         @id @default(cuid())
-  name     String
-  role     ManagementRole @default(ADMIN)
-  email    String         @unique
-  password String
+  id              String         @id @default(cuid())
+  name            String
+  role            ManagementRole @default(ADMIN)
+  email           String         @unique
+  password        String
+  agentCode       String?        @unique
+  phone           String?
+  isActive        Boolean        @default(true)
+  commissionRate  Decimal        @db.Decimal(5, 2) @default(0.00)
+  createdAt       DateTime       @default(now())
+
+  subAdminUsers   User[]          @relation("SubAdminPlayers")
+  depositWallets  DepositWallet[] @relation("SubAdminWallets")
 }
 
 model EmailVerificationToken {
@@ -492,4 +512,25 @@ model Transaction {
   status        String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// ====================== SoftAPI GGR Wallet Ledger ======================
+enum GgrLedgerType {
+  OPENING
+  TOPUP
+  ADJUSTMENT
+}
+
+model GgrTopup {
+  id           String        @id @default(cuid())
+  type         GgrLedgerType @default(TOPUP)
+  amount       Decimal       @db.Decimal(18, 2)
+  method       String?
+  reference    String?
+  note         String?
+  liveBalance  Decimal?      @db.Decimal(18, 2)
+  createdBy    String?
+  createdAt    DateTime      @default(now())
+
+  @@index([createdAt])
 }

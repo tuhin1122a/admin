@@ -1,5 +1,6 @@
 import { INTERNAL_SERVER_ERROR } from "@/error";
-import { db } from "@/lib/db"; // adjust to your actual prisma client path
+import { db } from "@/lib/db";
+import { auth } from "@/auth";
 import {
   endOfYear,
   startOfYear,
@@ -26,6 +27,49 @@ const sumAmount = async (model: any, where?: any) => {
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await auth();
+    const currentRole = (session?.user as any)?.role;
+    const currentAdminId = session?.user?.id;
+    const isSubAdmin = currentRole === "SUBADMIN";
+
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      "https://rk444.site";
+
+    let subAdminInfo = null;
+
+    if (isSubAdmin && currentAdminId) {
+      const adminRecord = await db.admin.findUnique({
+        where: { id: currentAdminId },
+      });
+      const bankingCount = await db.depositWallet.count({
+        where: { subAdminId: currentAdminId },
+      });
+      if (adminRecord) {
+        const code =
+          adminRecord.agentCode || `AGT${adminRecord.id.slice(-4).toUpperCase()}`;
+        subAdminInfo = {
+          isSubAdmin: true,
+          agentCode: code,
+          commissionRate: Number(adminRecord.commissionRate ?? 0),
+          phone: adminRecord.phone || "",
+          referralLink: `${siteUrl.replace(/\/+$/, "")}/register?agent=${code}`,
+          commissionEarned: 0,
+          myBankingCount: bankingCount,
+        };
+      }
+    }
+
+    // Role-based scoping: sub-admin only sees their own players and their financial traffic
+    const baseUserWhere: any = isSubAdmin ? { subAdminId: currentAdminId } : {};
+    const baseDepositWhere: any = isSubAdmin
+      ? { user: { subAdminId: currentAdminId } }
+      : {};
+    const baseWithdrawWhere: any = isSubAdmin
+      ? { user: { subAdminId: currentAdminId } }
+      : {};
+
     const { searchParams } = new URL(req.url);
 
     const startDateParam = searchParams.get("startDate");
@@ -40,85 +84,138 @@ export async function GET(req: NextRequest) {
 
     // Stats
     const totalUsers = {
-      last7Days: await countUsers({ createdAt: { gte: last7Days } }),
-      last30Days: await countUsers({ createdAt: { gte: last30Days } }),
-      allTime: await countUsers(),
+      last7Days: await countUsers({
+        ...baseUserWhere,
+        createdAt: { gte: last7Days },
+      }),
+      last30Days: await countUsers({
+        ...baseUserWhere,
+        createdAt: { gte: last30Days },
+      }),
+      allTime: await countUsers(baseUserWhere),
     };
 
     const activeUsers = {
       last7Days: await countUsers({
+        ...baseUserWhere,
         createdAt: { gte: last7Days },
         isBanned: false,
       }),
       last30Days: await countUsers({
+        ...baseUserWhere,
         createdAt: { gte: last30Days },
         isBanned: false,
       }),
-      allTime: await countUsers({ isBanned: false }),
+      allTime: await countUsers({ ...baseUserWhere, isBanned: false }),
     };
 
     const bannedUsers = {
       last7Days: await countUsers({
+        ...baseUserWhere,
         createdAt: { gte: last7Days },
         isBanned: true,
       }),
       last30Days: await countUsers({
+        ...baseUserWhere,
         createdAt: { gte: last30Days },
         isBanned: true,
       }),
-      allTime: await countUsers({ isBanned: true }),
+      allTime: await countUsers({ ...baseUserWhere, isBanned: true }),
     };
 
     const totalRevenue = {
       last7Days: await sumAmount(db.deposit, {
+        ...baseDepositWhere,
         createdAt: { gte: last7Days },
         status: "APPROVED",
       }),
       last30Days: await sumAmount(db.deposit, {
+        ...baseDepositWhere,
         createdAt: { gte: last30Days },
         status: "APPROVED",
       }),
-      allTime: await sumAmount(db.deposit, { status: "APPROVED" }),
+      allTime: await sumAmount(db.deposit, {
+        ...baseDepositWhere,
+        status: "APPROVED",
+      }),
     };
 
     const payoutsIssued = {
       last7Days: await sumAmount(db.withdraw, {
+        ...baseWithdrawWhere,
         createdAt: { gte: last7Days },
         status: "APPROVED",
       }),
       last30Days: await sumAmount(db.withdraw, {
+        ...baseWithdrawWhere,
         createdAt: { gte: last30Days },
         status: "APPROVED",
       }),
-      allTime: await sumAmount(db.withdraw, { status: "APPROVED" }),
+      allTime: await sumAmount(db.withdraw, {
+        ...baseWithdrawWhere,
+        status: "APPROVED",
+      }),
     };
 
     const pendingWithdrawals = {
       last7Days: await sumAmount(db.withdraw, {
+        ...baseWithdrawWhere,
         createdAt: { gte: last7Days },
         status: "PENDING",
       }),
       last30Days: await sumAmount(db.withdraw, {
+        ...baseWithdrawWhere,
         createdAt: { gte: last30Days },
         status: "PENDING",
       }),
-      allTime: await sumAmount(db.withdraw, { status: "PENDING" }),
+      allTime: await sumAmount(db.withdraw, {
+        ...baseWithdrawWhere,
+        status: "PENDING",
+      }),
     };
 
     const successDeposits = {
       last7Days: await sumAmount(db.deposit, {
+        ...baseDepositWhere,
         createdAt: { gte: last7Days },
         status: "APPROVED",
       }),
       last30Days: await sumAmount(db.deposit, {
+        ...baseDepositWhere,
         createdAt: { gte: last30Days },
         status: "APPROVED",
       }),
-      allTime: await sumAmount(db.deposit, { status: "APPROVED" }),
+      allTime: await sumAmount(db.deposit, {
+        ...baseDepositWhere,
+        status: "APPROVED",
+      }),
     };
+
+    const walletWhere: any = isSubAdmin
+      ? { user: { subAdminId: currentAdminId, isBanned: false } }
+      : { OR: [{ user: { isBanned: false } }, { user: null }] };
+
+    const walletAgg = await db.wallet.aggregate({
+      where: walletWhere,
+      _sum: { balance: true },
+    });
+    const totalUserWalletBalance = Number(walletAgg._sum.balance ?? 0);
+    const netAdminBalance = {
+      last7Days: totalRevenue.last7Days - payoutsIssued.last7Days,
+      last30Days: totalRevenue.last30Days - payoutsIssued.last30Days,
+      allTime: totalRevenue.allTime - payoutsIssued.allTime,
+    };
+
+    if (subAdminInfo) {
+      const netAll = netAdminBalance.allTime;
+      const commRate = subAdminInfo.commissionRate || 0;
+      subAdminInfo.commissionEarned =
+        Math.round(Math.max(0, netAll * (commRate / 100)) * 100) / 100;
+    }
 
     // Recent transactions (latest 7)
     const recentTransactions = await db.deposit.findMany({
+      where: baseDepositWhere,
       orderBy: { createdAt: "desc" },
       take: 7,
       include: { user: true },
@@ -129,37 +226,44 @@ export async function GET(req: NextRequest) {
     if (startDate && endDate) {
       filteredData = {
         totalUsers: await countUsers({
+          ...baseUserWhere,
           createdAt: { gte: startDate, lte: endDate },
         }),
         activeUsers: await countUsers({
+          ...baseUserWhere,
           createdAt: { gte: startDate, lte: endDate },
           isBanned: false,
         }),
         bannedUsers: await countUsers({
+          ...baseUserWhere,
           createdAt: { gte: startDate, lte: endDate },
           isBanned: true,
         }),
         totalRevenue: await sumAmount(db.deposit, {
+          ...baseDepositWhere,
           createdAt: { gte: startDate, lte: endDate },
           status: "APPROVED",
         }),
         payoutsIssued: await sumAmount(db.withdraw, {
+          ...baseWithdrawWhere,
           createdAt: { gte: startDate, lte: endDate },
           status: "APPROVED",
         }),
         pendingWithdrawals: await sumAmount(db.withdraw, {
+          ...baseWithdrawWhere,
           createdAt: { gte: startDate, lte: endDate },
           status: "PENDING",
         }),
         successDeposits: await sumAmount(db.deposit, {
+          ...baseDepositWhere,
           createdAt: { gte: startDate, lte: endDate },
           status: "APPROVED",
         }),
       };
     }
 
-    // deposit and withdrawo chart
-    const paymentFilter = searchParams.get("payment-filter") || "7days"; // default is last 7 days
+    // deposit and withdraw chart
+    const paymentFilter = searchParams.get("payment-filter") || "7days";
     const year = searchParams.get("year");
 
     let fromDate: Date = new Date(0);
@@ -167,27 +271,27 @@ export async function GET(req: NextRequest) {
     let labels: string[] = [];
 
     if (paymentFilter === "7days") {
-      fromDate = subDays(toDate, 6); // last 7 days including today
+      fromDate = subDays(toDate, 6);
       const days = eachDayOfInterval({ start: fromDate, end: toDate });
-      labels = days.map((d) => format(d, "EEE")); // Mon, Tue, ...
+      labels = days.map((d) => format(d, "EEE"));
     } else if (paymentFilter === "lastMonth") {
       const today = new Date();
-      toDate = subDays(today, 1); // up to yesterday
-      fromDate = subDays(toDate, 29); // total 30 days
-
+      toDate = subDays(today, 1);
+      fromDate = subDays(toDate, 29);
       const days = eachDayOfInterval({ start: fromDate, end: toDate });
       labels = days.map((d) => format(d, "MMM dd"));
     } else if (paymentFilter === "year" && year) {
       fromDate = startOfYear(new Date(parseInt(year), 0));
       toDate = endOfYear(fromDate);
       const months = eachMonthOfInterval({ start: fromDate, end: toDate });
-      labels = months.map((m) => format(m, "MMM")); // Jan, Feb, ...
+      labels = months.map((m) => format(m, "MMM"));
     } else {
-      fromDate = new Date(0); // fallback for all time
+      fromDate = new Date(0);
     }
 
     const deposits = await db.deposit.findMany({
       where: {
+        ...baseDepositWhere,
         status: "APPROVED",
         createdAt: {
           gte: fromDate,
@@ -198,6 +302,7 @@ export async function GET(req: NextRequest) {
 
     const withdraws = await db.withdraw.findMany({
       where: {
+        ...baseWithdrawWhere,
         status: "APPROVED",
         createdAt: {
           gte: fromDate,
@@ -306,6 +411,9 @@ export async function GET(req: NextRequest) {
       payoutsIssued,
       pendingWithdrawals,
       successDeposits,
+      totalUserWalletBalance,
+      netAdminBalance,
+      subAdminInfo,
       recentTransactions,
       depositWithdraw: {
         filter: paymentFilter,
