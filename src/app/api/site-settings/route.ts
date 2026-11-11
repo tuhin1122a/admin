@@ -1,13 +1,24 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import {
+  DEFAULT_TAWK_SETTINGS,
+  normalizeTawkWidgetUrl,
+  parseTawkConfig,
+  TAWK_CONFIG_KEY,
+} from "@/lib/tawk";
 
 // GET endpoint to fetch all settings
 export async function GET() {
   try {
-    const [siteSettings, bonusSettings] = await Promise.all([
+    const [siteSettings, bonusSettings, tawkConfigRow] = await Promise.all([
       db.siteSetting.findFirst(),
       db.bonus.findFirst(),
+      db.siteConfig
+        .findUnique({ where: { key: TAWK_CONFIG_KEY } })
+        .catch(() => null),
     ]);
+
+    const tawkSettings = parseTawkConfig(tawkConfigRow?.value);
 
     return NextResponse.json({
       siteSettings: {
@@ -23,6 +34,7 @@ export async function GET() {
         signinBonus: bonusSettings?.signinBonus ? Number(bonusSettings.signinBonus) : 0,
         referralBonus: bonusSettings?.referralBonus ? Number(bonusSettings.referralBonus) : 0,
       },
+      tawkSettings,
     });
   } catch (err) {
     console.error("Error fetching settings:", err);
@@ -36,16 +48,40 @@ export async function GET() {
 // PATCH endpoint to update site settings
 export async function PATCH(request: Request) {
   try {
-    const { siteSettings, bonusSettings } = await request.json();
+    const { siteSettings, bonusSettings, tawkSettings } = await request.json();
+
+    // 0. Validate Tawk.to Live Chat settings first if provided
+    let savedTawkSettings = { ...DEFAULT_TAWK_SETTINGS };
+    if (tawkSettings) {
+      const normalized = normalizeTawkWidgetUrl(tawkSettings.widgetUrl);
+      if (!normalized.valid) {
+        return NextResponse.json(
+          {
+            error:
+              "Invalid Tawk.to Script URL. Paste a valid https://embed.tawk.to/<property>/<widget> URL or full embed script.",
+          },
+          { status: 400 }
+        );
+      }
+
+      savedTawkSettings = {
+        enabled: Boolean(tawkSettings.enabled),
+        widgetUrl: normalized.url,
+        showFloatingBubble:
+          typeof tawkSettings.showFloatingBubble === "boolean"
+            ? tawkSettings.showFloatingBubble
+            : true,
+      };
+    }
 
     // 1. Update site settings
     const firstSite = await db.siteSetting.findFirst();
     const siteSettingsData = {
-      maxWithdraw: siteSettings.maxWithdraw,
-      minWithdraw: siteSettings.minWithdraw,
-      dpTurnover: siteSettings.dpTurnover,
-      sliderImages: siteSettings.sliderImages || [],
-      promotionsLogo: siteSettings.promotionsLogo || "",
+      maxWithdraw: siteSettings?.maxWithdraw ?? 0,
+      minWithdraw: siteSettings?.minWithdraw ?? 0,
+      dpTurnover: siteSettings?.dpTurnover ?? 0,
+      sliderImages: siteSettings?.sliderImages || [],
+      promotionsLogo: siteSettings?.promotionsLogo || "",
     };
 
     let updatedSiteSettings;
@@ -63,8 +99,8 @@ export async function PATCH(request: Request) {
     // 2. Update bonus settings
     const firstBonus = await db.bonus.findFirst();
     const bonusSettingsData = {
-      signinBonus: Number(bonusSettings.signinBonus || 0),
-      referralBonus: Number(bonusSettings.referralBonus || 0),
+      signinBonus: Number(bonusSettings?.signinBonus || 0),
+      referralBonus: Number(bonusSettings?.referralBonus || 0),
     };
 
     let updatedBonusSettings;
@@ -79,9 +115,27 @@ export async function PATCH(request: Request) {
       });
     }
 
+    // 3. Upsert Tawk.to Live Chat settings into shared SiteConfig
+    if (tawkSettings) {
+      await db.siteConfig.upsert({
+        where: { key: TAWK_CONFIG_KEY },
+        update: { value: JSON.stringify(savedTawkSettings) },
+        create: {
+          key: TAWK_CONFIG_KEY,
+          value: JSON.stringify(savedTawkSettings),
+        },
+      });
+    } else {
+      const existingTawk = await db.siteConfig
+        .findUnique({ where: { key: TAWK_CONFIG_KEY } })
+        .catch(() => null);
+      savedTawkSettings = parseTawkConfig(existingTawk?.value);
+    }
+
     return NextResponse.json({
       siteSettings: updatedSiteSettings,
       bonusSettings: updatedBonusSettings,
+      tawkSettings: savedTawkSettings,
     });
   } catch (err) {
     console.error("Error updating settings:", err);

@@ -15,13 +15,26 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   useGetSiteSettingsQuery,
   useUpdateSiteSettingsMutation,
 } from "@/lib/features/siteSettingsApi";
-import { Loader2 } from "lucide-react";
+import {
+  DEFAULT_TAWK_SETTINGS,
+  DEFAULT_TAWK_WIDGET_URL,
+  normalizeTawkWidgetUrl,
+} from "@/lib/tawk";
+import { ExternalLink, Loader2, MessageSquareCode } from "lucide-react";
 import { toast } from "sonner";
 import { INTERNAL_SERVER_ERROR } from "@/error";
 
@@ -39,6 +52,11 @@ const siteSettingsSchema = z.object({
     id: z.string().optional(),
     signinBonus: z.coerce.number().int().min(0, "Must be positive"),
     referralBonus: z.coerce.number().int().min(0, "Must be positive"),
+  }),
+  tawkSettings: z.object({
+    enabled: z.boolean(),
+    widgetUrl: z.string(),
+    showFloatingBubble: z.boolean(),
   }),
 });
 
@@ -90,6 +108,16 @@ export function SiteSettingsForm() {
     }
   };
 
+  const normalizedValues = data
+    ? {
+        ...data,
+        tawkSettings: {
+          ...DEFAULT_TAWK_SETTINGS,
+          ...(data.tawkSettings || {}),
+        },
+      }
+    : undefined;
+
   const form = useForm<SiteSettingsFormValues>({
     resolver: zodResolver(siteSettingsSchema),
     defaultValues: {
@@ -104,12 +132,36 @@ export function SiteSettingsForm() {
         signinBonus: 5,
         referralBonus: 5,
       },
+      tawkSettings: DEFAULT_TAWK_SETTINGS,
     },
-    values: data || undefined,
+    values: normalizedValues,
   });
+
+  const tawkEnabled = form.watch("tawkSettings.enabled");
+  const tawkWidgetUrl = form.watch("tawkSettings.widgetUrl");
+  const normalizedPreview = normalizeTawkWidgetUrl(tawkWidgetUrl);
 
   const onSubmit = async (values: SiteSettingsFormValues) => {
   const asyncAction = async () => {
+    const parsedTawk = normalizeTawkWidgetUrl(values.tawkSettings?.widgetUrl);
+    if (!parsedTawk.valid) {
+      throw new Error(
+        "Invalid Tawk.to URL. Paste the embed.tawk.to URL or full script snippet."
+      );
+    }
+
+    const sanitizedValues: SiteSettingsFormValues = {
+      ...values,
+      tawkSettings: {
+        enabled: Boolean(values.tawkSettings?.enabled),
+        widgetUrl: parsedTawk.url,
+        showFloatingBubble:
+          typeof values.tawkSettings?.showFloatingBubble === "boolean"
+            ? values.tawkSettings.showFloatingBubble
+            : true,
+      },
+    };
+
     // Upload images if any files are selected
     if (sliderFiles.length > 0 || promotionsLogoFile) {
       // Create FormData for image upload
@@ -139,18 +191,18 @@ export function SiteSettingsForm() {
       
       // Update values with uploaded image URLs
       const updatedValues = {
-        ...values,
+        ...sanitizedValues,
         siteSettings: {
-          ...values.siteSettings,
-          sliderImages: uploadData.sliderImages.length > 0 ? uploadData.sliderImages : values.siteSettings.sliderImages || [],
-          promotionsLogo: uploadData.promotionsLogo || values.siteSettings.promotionsLogo || "",
+          ...sanitizedValues.siteSettings,
+          sliderImages: uploadData.sliderImages.length > 0 ? uploadData.sliderImages : sanitizedValues.siteSettings.sliderImages || [],
+          promotionsLogo: uploadData.promotionsLogo || sanitizedValues.siteSettings.promotionsLogo || "",
         }
       };
       
       await updateSettings(updatedValues).unwrap();
     } else {
       // No files to upload, just update settings
-      await updateSettings(values).unwrap();
+      await updateSettings(sanitizedValues).unwrap();
     }
   };
 
@@ -160,6 +212,8 @@ export function SiteSettingsForm() {
       error: (error) => {
         if (error?.data?.error) {
           return `Error: ${error.data.error}`;
+        } else if (error?.message) {
+          return error.message;
         } else {
           return INTERNAL_SERVER_ERROR;
         }
@@ -259,6 +313,152 @@ export function SiteSettingsForm() {
             />
           </div>
         </div>
+
+        {/* Tawk.to Live Chat Integration */}
+        <Card>
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <MessageSquareCode className="h-5 w-5 text-emerald-600" />
+                <CardTitle>Live Chat (Tawk.to) Integration</CardTitle>
+                <Badge
+                  variant={tawkEnabled ? "default" : "secondary"}
+                  className={
+                    tawkEnabled
+                      ? "bg-emerald-600 hover:bg-emerald-600 text-white"
+                      : ""
+                  }
+                >
+                  {tawkEnabled ? "ACTIVE" : "DISABLED"}
+                </Badge>
+              </div>
+              <CardDescription>
+                Manage 24/7 Tawk.to live support across the web platform. Players
+                automatically pass their Name, Phone &amp; Player ID to agents.
+              </CardDescription>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {normalizedPreview.valid && normalizedPreview.directChatUrl && (
+                <Button type="button" variant="outline" size="sm" asChild>
+                  <a
+                    href={normalizedPreview.directChatUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Test Chat <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                  </a>
+                </Button>
+              )}
+              <Button type="button" variant="outline" size="sm" asChild>
+                <a
+                  href="https://dashboard.tawk.to"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Tawk.to Inbox <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                </a>
+              </Button>
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="tawkSettings.enabled"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5 pr-3">
+                      <FormLabel className="text-base">
+                        Enable Tawk.to Live Chat
+                      </FormLabel>
+                      <p className="text-xs text-muted-foreground">
+                        Loads Tawk.to live widget and routes Live Chat / Support
+                        buttons straight to Tawk.to.
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={Boolean(field.value)}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="tawkSettings.showFloatingBubble"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5 pr-3">
+                      <FormLabel className="text-base">
+                        Show Floating Chat Bubble
+                      </FormLabel>
+                      <p className="text-xs text-muted-foreground">
+                        Displays the floating icon (hidden on game play &amp;
+                        auth screens). If off, chat opens when clicking Live Chat
+                        buttons.
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={Boolean(field.value)}
+                        onCheckedChange={field.onChange}
+                        disabled={!tawkEnabled}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="tawkSettings.widgetUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Tawk.to Embed Script URL or Full &lt;script&gt; Snippet
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder={DEFAULT_TAWK_WIDGET_URL}
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (raw.includes("<script") || raw.includes("tawk.to")) {
+                          const parsed = normalizeTawkWidgetUrl(raw);
+                          if (parsed.valid) {
+                            field.onChange(parsed.url);
+                            return;
+                          }
+                        }
+                        field.onChange(raw);
+                      }}
+                    />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Paste your full Tawk.to embed &lt;script&gt; snippet or
+                    embed URL (e.g.{" "}
+                    <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                      {DEFAULT_TAWK_WIDGET_URL}
+                    </code>
+                    ) and we&apos;ll extract it automatically.
+                  </p>
+                  {!normalizedPreview.valid && tawkWidgetUrl && (
+                    <p className="text-xs text-red-500">
+                      Please enter a valid https://embed.tawk.to/&lt;propertyId&gt;/&lt;widgetId&gt; URL.
+                    </p>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
 
         {/* Slider Images Section */}
         <Card className="mt-8">

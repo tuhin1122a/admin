@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -151,7 +152,35 @@ const SupportPage: React.FC = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-5rem)] bg-white rounded-lg shadow overflow-hidden border">
+    <div className="flex flex-col h-[calc(100vh-5rem)] bg-white rounded-lg shadow overflow-hidden border">
+      {/* Tawk.to Live Chat Console Banner */}
+      <div className="px-4 py-2.5 bg-gradient-to-r from-emerald-50 to-teal-50 border-b flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-xs sm:text-sm text-emerald-950">
+          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="font-semibold">Tawk.to 24/7 Live Chat Active</span>
+          <span className="hidden md:inline text-emerald-800/80">
+            — Reply to real-time web players from the Tawk.to Agent Console, or manage settings in Site Settings.
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/site"
+            className="text-xs font-medium px-2.5 py-1 rounded border border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-50 transition-colors"
+          >
+            Widget Settings
+          </Link>
+          <a
+            href="https://dashboard.tawk.to"
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs font-semibold px-3 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+          >
+            Open Tawk.to Inbox ↗
+          </a>
+        </div>
+      </div>
+
+      <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* Sidebar - Users List */}
       <div className="w-1/3 md:w-1/4 border-r flex flex-col bg-gray-50/50">
         <div className="p-4 border-b bg-white">
@@ -330,6 +359,7 @@ const SupportPage: React.FC = () => {
             </p>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ export default function SiteSettingsPage() {
         <CardHeader>
           <CardTitle>Site Settings</CardTitle>
           <CardDescription>
-            Configure withdrawal limits and bonus amounts
+            Configure withdrawal limits, bonus amounts, banners, and Tawk.to Live Chat
           </CardDescription>
         </CardHeader>
         <CardContent>
