@@ -14,6 +14,26 @@ export const { signIn, signOut, auth, handlers } = NextAuth({
   pages: {
     signIn: "/",
   },
+  cookies: {
+    sessionToken: {
+      name: "adminx.session-token",
+    },
+    callbackUrl: {
+      name: "adminx.callback-url",
+    },
+    csrfToken: {
+      name: "adminx.csrf-token",
+    },
+  },
+  logger: {
+    error(error) {
+      if ((error as { type?: string })?.type === "JWTSessionError") {
+        console.warn("[adminx auth] Ignoring undecryptable/expired session cookie.");
+        return;
+      }
+      console.error("[adminx auth][error]", error);
+    },
+  },
 
   callbacks: {
     async jwt({ token, user }) {

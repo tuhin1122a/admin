@@ -8,87 +8,142 @@ import { auth } from "@/auth";
 export const POST = async (req: NextRequest) => {
   try {
     const session = await auth();
-    const currentRole = (session?.user as any)?.role;
-    const currentAdminId = session?.user?.id;
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    const body = (await req.json()) as WalletCreateInput & { subAdminId?: string };
-    const { walletLogo, walletName, walletType, wallets, isActive, subAdminId } = body;
+    const currentRole = (session.user as any)?.role;
+    const currentAdminId = session.user.id;
 
-    const effectiveSubAdminId =
-      currentRole === "SUBADMIN" ? currentAdminId : subAdminId || null;
+    const body = (await req.json()) as WalletCreateInput;
+    const {
+      paymentWalletId,
+      walletLogo,
+      walletName,
+      walletType,
+      wallets,
+      isActive,
+      subAdminId,
+      minDeposit,
+      maxDeposit,
+      trxType,
+      instructions,
+      warning,
+    } = body;
 
-    const existingWallet = await db.paymentWallet.findMany({
-      where: {
-        AND: [
-          {
-            walletName: walletName.toLowerCase(),
-          },
-          {
-            walletType: walletType,
-          },
-        ],
-      },
-      select: { id: true },
-    });
+    const cleanWallets = (wallets || [])
+      .map((w) => String(w).trim())
+      .filter(Boolean);
 
-    const existingWalletsId = existingWallet.map((wallet) => wallet.id);
-
-    const existingDepositWallet = await db.depositWallet.findMany({
-      where: {
-        paymentWalletId: { in: [...existingWalletsId!] },
-        walletsNumber: {
-          hasSome: wallets,
-        },
-        subAdminId: effectiveSubAdminId,
-      },
-    });
-
-    if (existingDepositWallet.length > 0) {
-      return Response.json(
-        {
-          error:
-            "Wallet Number is already available with the same Payment wallet type",
-        },
+    if (cleanWallets.length === 0) {
+      return NextResponse.json(
+        { error: "At least one wallet number is required" },
         { status: 400 }
       );
     }
 
-    const payload: Prisma.PaymentWalletCreateInput = {
-      walletLogo: "",
-      walletName: "",
-    };
+    const effectiveSubAdminId =
+      currentRole === "SUBADMIN"
+        ? currentAdminId || null
+        : subAdminId && subAdminId !== "default" && subAdminId !== "all"
+        ? subAdminId
+        : null;
 
-    if (walletLogo) {
-      payload.walletLogo = walletLogo;
+    if (effectiveSubAdminId && currentRole === "ADMIN") {
+      const targetAgent = await db.admin.findFirst({
+        where: { id: effectiveSubAdminId, role: "SUBADMIN" },
+        select: { id: true },
+      });
+      if (!targetAgent) {
+        return NextResponse.json(
+          { error: "Selected Sub-Admin was not found" },
+          { status: 404 }
+        );
+      }
     }
 
-    if (walletName) {
-      payload.walletName = walletName.toLowerCase();
+    // Resolve or create PaymentWallet (reuse existing preset if matching)
+    let resolvedPaymentWallet = paymentWalletId
+      ? await db.paymentWallet.findUnique({ where: { id: paymentWalletId } })
+      : null;
+
+    if (!resolvedPaymentWallet && walletName) {
+      resolvedPaymentWallet = await db.paymentWallet.findFirst({
+        where: {
+          walletName: { equals: walletName.trim(), mode: "insensitive" },
+          walletType: walletType,
+        },
+      });
     }
 
-    if (walletType) {
-      payload.walletType = walletType;
+    // Check duplicate numbers within same sub-admin and wallet type
+    const existingMatchingPaymentWallets = await db.paymentWallet.findMany({
+      where: {
+        walletName: {
+          equals: (resolvedPaymentWallet?.walletName || walletName).trim(),
+          mode: "insensitive",
+        },
+        walletType: resolvedPaymentWallet?.walletType || walletType,
+      },
+      select: { id: true },
+    });
+
+    const existingWalletsId = existingMatchingPaymentWallets.map((w) => w.id);
+
+    if (existingWalletsId.length > 0) {
+      const existingDepositWallet = await db.depositWallet.findMany({
+        where: {
+          paymentWalletId: { in: existingWalletsId },
+          walletsNumber: { hasSome: cleanWallets },
+          subAdminId: effectiveSubAdminId,
+        },
+      });
+
+      if (existingDepositWallet.length > 0) {
+        return NextResponse.json(
+          {
+            error:
+              "Wallet Number already exists for this payment method under this account",
+          },
+          { status: 400 }
+        );
+      }
     }
 
-    const paymentWallet = await db.paymentWallet.create({ data: payload });
+    if (!resolvedPaymentWallet) {
+      resolvedPaymentWallet = await db.paymentWallet.create({
+        data: {
+          walletLogo: walletLogo || "",
+          walletName: walletName.trim(),
+          walletType: walletType || "EWALLET",
+        },
+      });
+    }
+
+    const parsedMin = Number(minDeposit);
+    const parsedMax = Number(maxDeposit);
+    const safeMin =
+      Number.isFinite(parsedMin) && parsedMin > 0 ? parsedMin : 100;
+    const safeMax =
+      Number.isFinite(parsedMax) && parsedMax >= safeMin ? parsedMax : 25000;
 
     await db.depositWallet.create({
       data: {
-        paymentWalletId: paymentWallet.id,
-        walletsNumber: wallets,
-        instructions: "",
-        warning: "",
-        trxType: "",
-        minDeposit: 0.0,
-        maximumDeposit: 0.0,
-        isActive,
+        paymentWalletId: resolvedPaymentWallet.id,
+        walletsNumber: cleanWallets,
+        instructions: instructions?.trim() || "",
+        warning: warning?.trim() || "",
+        trxType: trxType?.trim() || "send-money",
+        minDeposit: safeMin,
+        maximumDeposit: safeMax,
+        isActive: isActive !== undefined ? Boolean(isActive) : true,
         subAdminId: effectiveSubAdminId,
       },
     });
 
-    return Response.json({ success: true }, { status: 201 });
+    return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {
-    console.error(error);
+    console.error("Create payment wallet error:", error);
     return NextResponse.json({ error: INTERNAL_SERVER_ERROR }, { status: 500 });
   }
 };
@@ -105,16 +160,44 @@ export const GET = async (req: NextRequest) => {
     const currentAdminId = session?.user?.id;
 
     let targetSubAdminId: string | null = null;
+    let targetSubAdmin: {
+      id: string;
+      name: string;
+      agentCode: string | null;
+      email: string;
+    } | null = null;
 
     if (currentRole === "SUBADMIN") {
       targetSubAdminId = currentAdminId || null;
-    } else if (subAdminIdParam) {
+      if (targetSubAdminId) {
+        targetSubAdmin = await db.admin.findUnique({
+          where: { id: targetSubAdminId },
+          select: { id: true, name: true, agentCode: true, email: true },
+        });
+      }
+    } else if (
+      subAdminIdParam &&
+      subAdminIdParam !== "default" &&
+      subAdminIdParam !== "all"
+    ) {
       targetSubAdminId = subAdminIdParam;
-    } else if (agentCode) {
-      const agent = await db.admin.findUnique({
-        where: { agentCode: agentCode.trim().toUpperCase() },
+      targetSubAdmin = await db.admin.findUnique({
+        where: { id: subAdminIdParam },
+        select: { id: true, name: true, agentCode: true, email: true },
       });
-      if (agent) targetSubAdminId = agent.id;
+    } else if (agentCode) {
+      const agent = await db.admin.findFirst({
+        where: {
+          role: "SUBADMIN",
+          isActive: true,
+          agentCode: { equals: agentCode.trim(), mode: "insensitive" },
+        },
+        select: { id: true, name: true, agentCode: true, email: true },
+      });
+      if (agent) {
+        targetSubAdminId = agent.id;
+        targetSubAdmin = agent;
+      }
     } else if (userId) {
       const user = await db.user.findFirst({
         where: {
@@ -127,27 +210,64 @@ export const GET = async (req: NextRequest) => {
 
     const paymentWallets = await db.paymentWallet.findMany();
 
+    // Build deduplicated preset templates for quick gateway creation
+    const seenTemplateKeys = new Set<string>();
+    const templates = paymentWallets.filter((pw) => {
+      const key = `${pw.walletName.trim().toLowerCase()}::${pw.walletType}`;
+      if (seenTemplateKeys.has(key)) return false;
+      seenTemplateKeys.add(key);
+      return true;
+    });
+
     let depositsWallets: any[] = [];
     if (targetSubAdminId) {
-      // Find sub-admin's custom wallets
       depositsWallets = await db.depositWallet.findMany({
         where: { subAdminId: targetSubAdminId },
+        include: {
+          subAdmin: {
+            select: { id: true, name: true, agentCode: true },
+          },
+        },
       });
-      // Fallback to default if sub-admin hasn't configured custom wallets yet (for players)
-      if (depositsWallets.length === 0 && !session?.user) {
-        depositsWallets = await db.depositWallet.findMany({
-          where: { subAdminId: null },
-        });
+      // For unauthenticated player lookups, fall back to default wallets if agent hasn't configured active ones
+      if (!session?.user) {
+        const configuredActive = depositsWallets.filter(
+          (w) =>
+            w.isActive &&
+            Array.isArray(w.walletsNumber) &&
+            w.walletsNumber.some((n: string) => String(n).trim().length > 0)
+        );
+        if (configuredActive.length === 0) {
+          depositsWallets = await db.depositWallet.findMany({
+            where: { subAdminId: null, isActive: true },
+          });
+        } else {
+          depositsWallets = configuredActive;
+        }
       }
     } else if (currentRole === "ADMIN") {
-      // Super admin sees all wallets
-      depositsWallets = await db.depositWallet.findMany();
-    } else {
-      // Default platform wallets (for direct users)
       depositsWallets = await db.depositWallet.findMany({
-        where: { subAdminId: null },
+        where: subAdminIdParam === "all" ? {} : { subAdminId: null },
+        include: {
+          subAdmin: {
+            select: { id: true, name: true, agentCode: true },
+          },
+        },
+      });
+    } else {
+      depositsWallets = await db.depositWallet.findMany({
+        where: { subAdminId: null, isActive: true },
       });
     }
+
+    const subAdmins =
+      currentRole === "ADMIN"
+        ? await db.admin.findMany({
+            where: { role: "SUBADMIN" },
+            select: { id: true, name: true, agentCode: true },
+            orderBy: { createdAt: "desc" },
+          })
+        : undefined;
 
     const allWallets = depositsWallets.map((dw) => {
       const paymentWallet = paymentWallets.find(
@@ -156,15 +276,33 @@ export const GET = async (req: NextRequest) => {
       return { ...dw, paymentWallet };
     });
 
-    return Response.json({ data: { wallets: allWallets } }, { status: 200 });
+    return NextResponse.json(
+      {
+        data: {
+          wallets: allWallets,
+          templates,
+          targetSubAdmin,
+          subAdmins,
+          isSubAdminView: currentRole === "SUBADMIN",
+        },
+      },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error(error);
+    console.error("Fetch payment wallets error:", error);
     return NextResponse.json({ error: INTERNAL_SERVER_ERROR }, { status: 500 });
   }
 };
 
 export const PUT = async (req: NextRequest) => {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const currentRole = (session.user as any)?.role;
+    const currentAdminId = session.user.id;
+
     const {
       id,
       maxDeposit,
@@ -175,18 +313,26 @@ export const PUT = async (req: NextRequest) => {
       wallets,
       warning,
     } = (await req.json()) as WalletUpdateInput;
+
     if (
       maxDeposit === undefined ||
       minDeposit === undefined ||
       !trxType ||
       !id
     ) {
-      return Response.json({ error: "Invalid input type" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid input type" }, { status: 400 });
     }
 
     const dpWallet = await db.depositWallet.findUnique({ where: { id } });
     if (!dpWallet)
-      return Response.json({ error: "Wallet Not Found" }, { status: 404 });
+      return NextResponse.json({ error: "Wallet Not Found" }, { status: 404 });
+
+    if (currentRole === "SUBADMIN" && dpWallet.subAdminId !== currentAdminId) {
+      return NextResponse.json(
+        { error: "Forbidden: cannot modify another account's wallet" },
+        { status: 403 }
+      );
+    }
 
     const payload: Prisma.DepositWalletUpdateInput = {
       maximumDeposit: maxDeposit,
@@ -195,33 +341,56 @@ export const PUT = async (req: NextRequest) => {
       isActive: isActive,
     };
 
-    if (instructions) {
+    if (instructions !== undefined) {
       payload.instructions = instructions;
     }
-    if (warning) {
+    if (warning !== undefined) {
       payload.warning = warning;
     }
 
     if (wallets) {
-      payload.walletsNumber = wallets;
+      payload.walletsNumber = wallets.map((w) => String(w).trim()).filter(Boolean);
     }
 
     await db.depositWallet.update({ where: { id }, data: payload });
 
-    return Response.json({ success: true }, { status: 200 });
+    return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error(error);
+    console.error("Update payment wallet error:", error);
     return NextResponse.json({ error: INTERNAL_SERVER_ERROR }, { status: 500 });
   }
 };
 
 export const DELETE = async (req: NextRequest) => {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const currentRole = (session.user as any)?.role;
+    const currentAdminId = session.user.id;
+
     const { id } = await req.json();
+    if (!id) {
+      return NextResponse.json({ error: "Wallet ID is required" }, { status: 400 });
+    }
+
+    const dpWallet = await db.depositWallet.findUnique({ where: { id } });
+    if (!dpWallet) {
+      return NextResponse.json({ error: "Wallet Not Found" }, { status: 404 });
+    }
+
+    if (currentRole === "SUBADMIN" && dpWallet.subAdminId !== currentAdminId) {
+      return NextResponse.json(
+        { error: "Forbidden: cannot delete another account's wallet" },
+        { status: 403 }
+      );
+    }
+
     await db.depositWallet.delete({ where: { id } });
-    return Response.json({ success: true }, { status: 200 });
+    return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    console.error("DELETE : ", error);
+    console.error("DELETE wallet error:", error);
     return NextResponse.json({ error: INTERNAL_SERVER_ERROR }, { status: 500 });
   }
 };

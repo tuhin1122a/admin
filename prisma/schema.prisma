@@ -541,3 +541,39 @@ model GgrTopup {
 
   @@index([createdAt])
 }
+
+// ====================== Provider & Hot Games Management ======================
+model GameProviderSetting {
+  id                String   @id @default(cuid())
+  brandId           String   @unique
+  name              String
+  customName        String?
+  logo              String?
+  category          String   @default("slots")
+  categories        String[]
+  isActive          Boolean  @default(true)
+  sortOrder         Int      @default(0)
+  gameCount         Int      @default(0)
+  currencySupported Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+model HotGame {
+  id           String   @id @default(cuid())
+  gameUid      String   @unique
+  brandId      String
+  name         String
+  providerName String?
+  category     String   @default("slots")
+  img          String?
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+  @@index([brandId])
+}

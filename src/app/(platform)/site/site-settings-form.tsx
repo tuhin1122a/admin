@@ -1,42 +1,42 @@
 "use client";
 
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { useEffect, useState } from "react";
-import Image from "next/image";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
+import { INTERNAL_SERVER_ERROR } from "@/error";
 import {
-  useGetSiteSettingsQuery,
-  useUpdateSiteSettingsMutation,
+    useGetSiteSettingsQuery,
+    useUpdateSiteSettingsMutation,
 } from "@/lib/features/siteSettingsApi";
 import {
-  DEFAULT_TAWK_SETTINGS,
-  DEFAULT_TAWK_WIDGET_URL,
-  normalizeTawkWidgetUrl,
+    DEFAULT_TAWK_SETTINGS,
+    DEFAULT_TAWK_WIDGET_URL,
+    normalizeTawkWidgetUrl,
 } from "@/lib/tawk";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { ExternalLink, Loader2, MessageSquareCode } from "lucide-react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { INTERNAL_SERVER_ERROR } from "@/error";
+import * as z from "zod";
 
 // Define validation schema
 const siteSettingsSchema = z.object({

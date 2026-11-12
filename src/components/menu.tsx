@@ -7,7 +7,7 @@ import { HiMiniUsers } from "react-icons/hi2";
 
 import { FaGear } from "react-icons/fa6";
 import { IoMdCode } from "react-icons/io";
-import { IoChatbubbles } from "react-icons/io5";
+import { IoChatbubbles, IoGameController } from "react-icons/io5";
 import { CiBank } from "react-icons/ci";
 import {
   PiHandDepositFill,
@@ -201,6 +201,12 @@ const getNavItems = (isSubAdmin: boolean) => {
       link: "/recharge",
       isActive: false,
       icon: MdOutlineAccountBalanceWallet,
+    },
+    {
+      label: "Games & Providers",
+      link: "/games-management",
+      isActive: false,
+      icon: IoGameController,
     },
     {
       label: "Casino SoftAPI",

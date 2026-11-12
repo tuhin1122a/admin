@@ -12,6 +12,25 @@ const { auth } = NextAuth({
   pages: {
     signIn: "/",
   },
+  cookies: {
+    sessionToken: {
+      name: "adminx.session-token",
+    },
+    callbackUrl: {
+      name: "adminx.callback-url",
+    },
+    csrfToken: {
+      name: "adminx.csrf-token",
+    },
+  },
+  logger: {
+    error(error) {
+      if ((error as { type?: string })?.type === "JWTSessionError") {
+        return;
+      }
+      console.error("[adminx middleware auth][error]", error);
+    },
+  },
   providers: [],
   callbacks: {
     async jwt({ token, user }) {
@@ -46,6 +65,23 @@ export default auth((req) => {
   }
 
   if (isPublicRoute) {
+    if (!isLoggedIn && req.cookies.getAll().some((c) => c.name === "adminx.session-token" || c.name.startsWith("adminx.session-token."))) {
+      const requestHeaders = new Headers(req.headers);
+      const cleaned = req.cookies
+        .getAll()
+        .filter((c) => c.name !== "adminx.session-token" && !c.name.startsWith("adminx.session-token."))
+        .map((c) => `${c.name}=${c.value}`)
+        .join("; ");
+      if (cleaned) requestHeaders.set("cookie", cleaned);
+      else requestHeaders.delete("cookie");
+      const res = NextResponse.next({ request: { headers: requestHeaders } });
+      for (const c of req.cookies.getAll()) {
+        if (c.name === "adminx.session-token" || c.name.startsWith("adminx.session-token.")) {
+          res.cookies.set(c.name, "", { maxAge: 0, path: "/" });
+        }
+      }
+      return res;
+    }
     return;
   }
 
@@ -56,7 +92,13 @@ export default auth((req) => {
   const { role } = req.auth.user as any;
 
   // Protect Super-Admin-only features from sub-admins
-  const superAdminOnlyPaths = ["/casino-api", "/site", "/recharge"];
+  const superAdminOnlyPaths = [
+    "/casino-api",
+    "/games-management",
+    "/api/games-management",
+    "/site",
+    "/recharge",
+  ];
   const isSuperAdminOnly = superAdminOnlyPaths.some(
     (p) => nextUrl.pathname === p || nextUrl.pathname.startsWith(`${p}/`)
   );

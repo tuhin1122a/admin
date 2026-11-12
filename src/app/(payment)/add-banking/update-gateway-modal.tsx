@@ -1,6 +1,5 @@
 "use client";
 import React, { useEffect } from "react";
-import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -121,7 +120,13 @@ const UpdateGatewayModal = ({
             <DialogTitle>Upate Payment Gateway</DialogTitle>
             <div className="flex items-center justify-between py-1 px-3 mt-2 border rounded-md">
               <div className="">
-                <Image src={label.image} alt={label.name} width={60} height={60} className="w-[60px]" />
+                {label.image && (
+                  <img
+                    src={label.image}
+                    alt={label.name}
+                    className="w-[60px] h-[60px] object-contain"
+                  />
+                )}
                 <span className="text-xs text-gray-300 block line-clamp-1">
                   {label.wallets.join(",")}
                 </span>

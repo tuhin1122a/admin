@@ -125,6 +125,13 @@ export async function GET(req: Request) {
 
 export const PUT = async (req: Request) => {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const currentRole = (session.user as any)?.role;
+    const currentAdminId = session.user.id;
+
     const { depositId, actionType } =
       (await req.json()) as DepositApprovalInput;
 
@@ -138,6 +145,23 @@ export const PUT = async (req: Request) => {
         { error: "Deposit was not found" },
         { status: 404 }
       );
+
+    if (
+      currentRole === "SUBADMIN" &&
+      deposit.user?.subAdminId !== currentAdminId
+    ) {
+      return NextResponse.json(
+        { error: "Forbidden: you can only manage your own players' deposits" },
+        { status: 403 }
+      );
+    }
+
+    if (deposit.status !== "PENDING") {
+      return NextResponse.json(
+        { error: "This deposit has already been processed" },
+        { status: 400 }
+      );
+    }
     const payload: Prisma.DepositUpdateInput = {};
     if (actionType == "approve") {
       payload.status = "APPROVED";

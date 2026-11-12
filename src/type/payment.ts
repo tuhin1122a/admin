@@ -1,11 +1,18 @@
 import { PaymentWalletType, Prisma } from "@prisma/client";
 
 export interface WalletCreateInput {
+  paymentWalletId?: string;
   walletLogo: string;
   walletName: string;
   wallets: string[];
   isActive?: boolean;
   walletType: PaymentWalletType;
+  subAdminId?: string;
+  minDeposit?: number;
+  maxDeposit?: number;
+  trxType?: string;
+  instructions?: string;
+  warning?: string;
 }
 export interface WalletUpdateInput {
   id: string;
@@ -19,10 +26,24 @@ export interface WalletUpdateInput {
 }
 export type ExtenedDepositWallet = Prisma.DepositWalletGetPayload<object> & {
   paymentWallet: Prisma.PaymentWalletGetPayload<object>;
+  subAdmin?: { id: string; name: string; agentCode: string | null } | null;
 };
 export interface WalletFetchOutput {
   data: {
     wallets: ExtenedDepositWallet[];
+    templates?: Prisma.PaymentWalletGetPayload<object>[];
+    targetSubAdmin?: {
+      id: string;
+      name: string;
+      agentCode: string | null;
+      email: string;
+    } | null;
+    subAdmins?: {
+      id: string;
+      name: string;
+      agentCode: string | null;
+    }[];
+    isSubAdminView?: boolean;
   };
 }
 

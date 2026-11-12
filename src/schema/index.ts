@@ -1,18 +1,32 @@
 import { PaymentWalletType } from "@prisma/client";
 import zod from "zod";
 
-export const paymentWalletCreateSchema = zod.object({
-  walletLogo: zod.string().min(1, "Wallet Logo is required"),
-  walletName: zod.string().min(1, "Wallet name is required"),
-  wallets: zod.array(zod.string()).min(1, "Minimum 1 wallet required"),
-  isActive: zod.boolean(),
-  walletType: zod.enum([
-    PaymentWalletType.BANK,
-    PaymentWalletType.CARD,
-    PaymentWalletType.CRYPTO,
-    PaymentWalletType.EWALLET,
-  ]),
-});
+export const paymentWalletCreateSchema = zod
+  .object({
+    paymentWalletId: zod.optional(zod.string()),
+    walletLogo: zod.string(),
+    walletName: zod.string().min(1, "Wallet name is required"),
+    wallets: zod.array(zod.string()).min(1, "Minimum 1 wallet required"),
+    isActive: zod.boolean(),
+    trxType: zod.optional(zod.string()),
+    minDeposit: zod.optional(zod.string()),
+    maxDeposit: zod.optional(zod.string()),
+    instructions: zod.optional(zod.string()),
+    warning: zod.optional(zod.string()),
+    walletType: zod.enum([
+      PaymentWalletType.BANK,
+      PaymentWalletType.CARD,
+      PaymentWalletType.CRYPTO,
+      PaymentWalletType.EWALLET,
+    ]),
+  })
+  .refine(
+    (data) => Boolean(data.paymentWalletId) || data.walletLogo.trim().length > 0,
+    {
+      message: "Wallet Logo is required for custom gateways",
+      path: ["walletLogo"],
+    }
+  );
 
 export const paymentWalletUpdateSchema = zod.object({
   wallets: zod.array(zod.string()).min(1, "Minimum 1 wallet required"),

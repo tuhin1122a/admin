@@ -22,9 +22,14 @@ const dashboardApiSlice = apiSlice.injectEndpoints({
       invalidatesTags: ["wallet"],
     }),
 
-    fetchWallets: builder.query<WalletFetchOutput, void>({
-      query: () => ({
-        url: `/api/payment/wallet`,
+    fetchWallets: builder.query<
+      WalletFetchOutput,
+      { subAdminId?: string } | void
+    >({
+      query: (arg) => ({
+        url: arg?.subAdminId
+          ? `/api/payment/wallet?subAdminId=${encodeURIComponent(arg.subAdminId)}`
+          : `/api/payment/wallet`,
         method: "GET",
       }),
       providesTags: ["wallet"],
@@ -50,7 +55,7 @@ const dashboardApiSlice = apiSlice.injectEndpoints({
 
     fetchDeposts: builder.query<DepostisFetchOutput, DepostisFetchInput>({
       query: (params) => ({
-        url: `/api/payment/deposits?search=${params.search}&from=${params.from}&to=${params.to}&gateway=${params.gateway}&minAmount=${params.minAmount}&maxAmount=${params.maxAmount}&status=${params.status}&limit=${params.limit}?page=${params.page}`,
+        url: `/api/payment/deposits?search=${params.search}&from=${params.from}&to=${params.to}&gateway=${params.gateway}&minAmount=${params.minAmount}&maxAmount=${params.maxAmount}&status=${params.status}&limit=${params.limit}&page=${params.page}`,
         method: "GET",
       }),
       providesTags: ["deposits"],
@@ -66,7 +71,7 @@ const dashboardApiSlice = apiSlice.injectEndpoints({
 
     fetchWithdraws: builder.query<WithdrawsFetchOutput, WithdrawsFetchInput>({
       query: (params) => ({
-        url: `/api/payment/withdraws?search=${params.search}&from=${params.from}&to=${params.to}&card=${params.card}&minAmount=${params.minAmount}&maxAmount=${params.maxAmount}&status=${params.status}&limit=${params.limit}?page=${params.page}`,
+        url: `/api/payment/withdraws?search=${params.search}&from=${params.from}&to=${params.to}&card=${params.card}&minAmount=${params.minAmount}&maxAmount=${params.maxAmount}&status=${params.status}&limit=${params.limit}&page=${params.page}`,
         method: "GET",
       }),
       providesTags: ["withdraws"],
