@@ -27,7 +27,7 @@ export default function AppVersionPage() {
     versionCode: 1,
     minVersion: "1.0.0",
     forceUpdate: false,
-    downloadUrl: "https://rk444.site/app.apk",
+    downloadUrl: "https://rk444.site/download/rk444.apk",
     releaseNotes: "• New 24H Lucky Wheel\n• Improved deposit & withdrawal speeds\n• Bug fixes and UI enhancements",
   });
   const [loading, setLoading] = useState(true);
