@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import { MdDashboard, MdOutlinePayment } from "react-icons/md";
 import { HiMiniUsers } from "react-icons/hi2";
 
-import { FaGear } from "react-icons/fa6";
+import { FaGear, FaGift } from "react-icons/fa6";
 import { IoMdCode } from "react-icons/io";
 import { IoChatbubbles, IoGameController } from "react-icons/io5";
 import { CiBank } from "react-icons/ci";
@@ -168,6 +168,12 @@ const getNavItems = (isSubAdmin: boolean) => {
           link: "/site",
           isActive: false,
           icon: BiWorld,
+        },
+        {
+          label: "Promotions & Wheel",
+          link: "/promotions",
+          isActive: false,
+          icon: FaGift,
         },
         {
           label: "Sub-Admins (Agents)",

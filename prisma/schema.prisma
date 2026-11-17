@@ -65,6 +65,9 @@ model User {
   subAdminId         String?
   subAdmin           Admin?              @relation("SubAdminPlayers", fields: [subAdminId], references: [id])
 
+  // Lucky Wheel spins
+  luckySpins          LuckyWheelSpin[]    @relation("UserLuckySpins")
+
   @@index([subAdminId])
 }
 
@@ -630,4 +633,51 @@ model BetHistory {
   @@index([userId, createdAt])
   @@index([createdAt])
   @@index([status])
+}
+
+model Promotion {
+  id            String   @id @default(cuid())
+  title         String
+  context       String   @default("Special Bonus")
+  category      String   @default("all") // "all", "welcome", "slots", "reload", "cashback", "referral", "sports", "live"
+  badge         String?
+  badgeColor    String?  @default("bg-amber-500 text-black")
+  turnover      String?  @default("1x Turnover")
+  minDeposit    String?  @default("500 BDT")
+  description   String
+  content       String   @db.Text
+  image         String
+  targetType    String   @default("ALL") // "ALL" or "SPECIFIC"
+  targetUserIds String[] @default([]) // Array of User IDs who can view this promotion
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([targetType])
+  @@index([isActive])
+  @@index([category])
+}
+
+model LuckyWheelSetting {
+  id              String   @id @default(cuid())
+  isActive        Boolean  @default(true)
+  freeSpinsPerDay Int      @default(1)
+  costPerSpin     Decimal  @default(0) @db.Decimal(10, 2)
+  slices          Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model LuckyWheelSpin {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("UserLuckySpins", fields: [userId], references: [id], onDelete: Cascade)
+  sliceIndex Int      @default(0)
+  prizeLabel String
+  prizeValue Decimal  @default(0) @db.Decimal(10, 2)
+  prizeType  String   @default("CASH") // "CASH", "BONUS", "FREE_SPINS", "POINTS", "TRY_AGAIN"
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
 }
