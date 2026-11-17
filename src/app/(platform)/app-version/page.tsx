@@ -23,12 +23,12 @@ interface AppVersionConfig {
 
 export default function AppVersionPage() {
   const [config, setConfig] = useState<AppVersionConfig>({
-    latestVersion: "1.0.0",
-    versionCode: 1,
+    latestVersion: "1.0.1",
+    versionCode: 2,
     minVersion: "1.0.0",
     forceUpdate: false,
     downloadUrl: "https://rk444.site/download/rk444.apk",
-    releaseNotes: "• New 24H Lucky Wheel\n• Improved deposit & withdrawal speeds\n• Bug fixes and UI enhancements",
+    releaseNotes: "• New animated RK444 startup screen\n• Real-time offline connection guard\n• Enhanced performance and stability",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
