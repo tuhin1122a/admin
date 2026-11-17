@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import { MdDashboard, MdOutlinePayment } from "react-icons/md";
 import { HiMiniUsers } from "react-icons/hi2";
 
-import { FaGear, FaGift } from "react-icons/fa6";
+import { FaGear, FaGift, FaMobile } from "react-icons/fa6";
 import { IoMdCode } from "react-icons/io";
 import { IoChatbubbles, IoGameController } from "react-icons/io5";
 import { CiBank } from "react-icons/ci";
@@ -180,6 +180,12 @@ const getNavItems = (isSubAdmin: boolean) => {
           link: "/sub-admins",
           isActive: false,
           icon: HiMiniUsers,
+        },
+        {
+          label: "App Version & Update",
+          link: "/app-version",
+          isActive: false,
+          icon: FaMobile,
         },
       ],
     },
