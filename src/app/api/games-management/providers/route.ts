@@ -67,6 +67,56 @@ export async function PATCH(req: NextRequest) {
       });
     }
 
+    if (body?.action === "reorder" && Array.isArray(body.orderedBrandIds)) {
+      const orderedBrandIds: string[] = body.orderedBrandIds
+        .map((id: any) => String(id).trim())
+        .filter(Boolean);
+      if (orderedBrandIds.length > 0) {
+        await db.$transaction(
+          orderedBrandIds.map((bId, index) =>
+            db.gameProviderSetting.updateMany({
+              where: { brandId: bId },
+              data: { sortOrder: index + 1 },
+            })
+          )
+        );
+      }
+      const { providers } = await syncAndGetMergedProviders({
+        refresh: false,
+        autoSyncMissing: false,
+      });
+      return NextResponse.json({ success: true, providers });
+    }
+
+    if (body?.action === "set-serial" && body?.brandId) {
+      const targetBrandId = String(body.brandId).trim();
+      const targetSerial = Math.max(1, Math.trunc(Number(body.serial) || 1));
+
+      const allRows = await db.gameProviderSetting.findMany({
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: { brandId: true },
+      });
+
+      const currentIds = allRows.map((r) => r.brandId).filter((id) => id !== targetBrandId);
+      const insertIdx = Math.min(targetSerial - 1, currentIds.length);
+      currentIds.splice(insertIdx, 0, targetBrandId);
+
+      await db.$transaction(
+        currentIds.map((bId, index) =>
+          db.gameProviderSetting.updateMany({
+            where: { brandId: bId },
+            data: { sortOrder: index + 1 },
+          })
+        )
+      );
+
+      const { providers } = await syncAndGetMergedProviders({
+        refresh: false,
+        autoSyncMissing: false,
+      });
+      return NextResponse.json({ success: true, providers });
+    }
+
     if (body?.action === "bulk-active") {
       const brandIds: string[] = Array.isArray(body.brandIds)
         ? body.brandIds.map((id: any) => String(id).trim()).filter(Boolean)

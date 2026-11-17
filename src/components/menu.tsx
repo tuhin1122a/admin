@@ -73,6 +73,12 @@ const getNavItems = (isSubAdmin: boolean) => {
         icon: HiMiniUsers,
       },
       {
+        label: "Player Bet History",
+        link: "/bet-history",
+        isActive: false,
+        icon: IoGameController,
+      },
+      {
         label: "Referral & Profile",
         link: "/sub-admins",
         isActive: false,
@@ -205,6 +211,12 @@ const getNavItems = (isSubAdmin: boolean) => {
     {
       label: "Games & Providers",
       link: "/games-management",
+      isActive: false,
+      icon: IoGameController,
+    },
+    {
+      label: "Bet History",
+      link: "/bet-history",
       isActive: false,
       icon: IoGameController,
     },

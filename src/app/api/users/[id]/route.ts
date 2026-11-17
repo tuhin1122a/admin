@@ -102,10 +102,51 @@ export const GET = async (
     const winRate =
       totalBet > 0 ? Number(((totalWin / totalBet) * 100).toFixed(2)) : 0;
 
-    // Filter SoftAPI recent callback logs for this specific user
+    // Load database BetHistory for this user (plus fallback to any local file logs not yet in DB)
+    const dbBets = await db.betHistory
+      .findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      })
+      .catch(() => []);
+
+    const seenSerials = new Set<string>();
+    const betHistory: Array<Record<string, unknown>> = [];
+
+    for (const row of dbBets) {
+      seenSerials.add(row.serialNumber);
+      const bAmt = Number(row.betAmount ?? 0);
+      const wAmt = Number(row.winAmount ?? 0);
+      const mult = bAmt > 0 ? Number((wAmt / bAmt).toFixed(2)) : 0;
+      const status: "WIN" | "LOSS" | "REFUND" =
+        row.status === "WIN" || row.status === "REFUND"
+          ? (row.status as "WIN" | "REFUND")
+          : wAmt > bAmt
+          ? "WIN"
+          : wAmt === bAmt && bAmt > 0
+          ? "REFUND"
+          : "LOSS";
+
+      betHistory.push({
+        serialNumber: row.serialNumber,
+        gameUid: row.gameUid,
+        gameName: row.gameName || `Game #${row.gameUid}`,
+        gameRound: row.gameRound || "",
+        betAmount: bAmt,
+        winAmount: wAmt,
+        multiplier: mult,
+        creditAmount: Number(row.creditAmount ?? 0),
+        status,
+        freeSpinBonus: row.freeSpinBonus || undefined,
+        createdAt: row.createdAt,
+      });
+    }
+
     const numericUserId = toNumericUserId(user.playerId || user.id);
     const allLogs = getRecentCallbackLogs();
     const userLogs = allLogs.filter((l) => {
+      if (seenSerials.has(l.serial_number)) return false;
       const acc = String(l.member_account).trim();
       return (
         acc === user.playerId ||
@@ -115,7 +156,7 @@ export const GET = async (
       );
     });
 
-    const betHistory = userLogs.map((l) => {
+    for (const l of userLogs) {
       const bAmt = Number(l.bet_amount ?? 0);
       const wAmt = Number(l.win_amount ?? 0);
       const mult = bAmt > 0 ? Number((wAmt / bAmt).toFixed(2)) : 0;
@@ -123,7 +164,7 @@ export const GET = async (
       if (wAmt > bAmt) status = "WIN";
       else if (wAmt === bAmt && bAmt > 0) status = "REFUND";
 
-      return {
+      betHistory.push({
         serialNumber: l.serial_number,
         gameUid: l.game_uid,
         gameName: l.game_name || `Game #${l.game_uid}`,
@@ -135,8 +176,8 @@ export const GET = async (
         status,
         freeSpinBonus: l.free_spin_bonus,
         createdAt: l.receivedAt || l.timestamp,
-      };
-    });
+      });
+    }
 
     return NextResponse.json({
       success: true,

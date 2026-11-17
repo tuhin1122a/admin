@@ -1,54 +1,54 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import CookieLoader from "@/components/loaders/cookie-loader";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import CookieLoader from "@/components/loaders/cookie-loader";
-import { toast } from "sonner";
-import {
-  ArrowDown,
-  ArrowUp,
-  Flame,
-  Gamepad2,
-  RefreshCw,
-  Search,
-  Sparkles,
-  Trash2,
+    ArrowDown,
+    ArrowUp,
+    Flame,
+    Gamepad2,
+    RefreshCw,
+    Search,
+    Sparkles,
+    Trash2,
 } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 interface ProviderRow {
   brandId: string;
@@ -69,12 +69,17 @@ interface CatalogGameRow {
   game_uid: string;
   brand_id: string;
   name: string;
+  originalName?: string;
   provider?: string;
   category?: string;
   logo?: string;
   currency_supported?: boolean;
   isHot: boolean;
   providerActive: boolean;
+  sortOrder?: number;
+  hasCustomOrder?: boolean;
+  providerSerial?: number;
+  isGameActive?: boolean;
 }
 
 interface HotGameRow {
@@ -157,6 +162,7 @@ export default function GamesManagementPage() {
     {}
   );
   const [togglingHotUid, setTogglingHotUid] = useState<string | null>(null);
+  const [updatingGameUid, setUpdatingGameUid] = useState<string | null>(null);
   const [launchingDemoUid, setLaunchingDemoUid] = useState<string | null>(null);
 
   // Hot Games state
@@ -355,6 +361,98 @@ export default function GamesManagementPage() {
       return false;
     } finally {
       setUpdatingBrandId(null);
+    }
+  };
+
+  const handleSetProviderSerial = async (
+    brandId: string,
+    serial: number,
+    displayName?: string
+  ) => {
+    try {
+      setUpdatingBrandId(brandId);
+      const res = await fetch("/api/games-management/providers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "set-serial",
+          brandId,
+          serial: Math.max(1, Math.trunc(serial)),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        toast.error(data?.error || "Failed to update provider serial");
+        return;
+      }
+      if (Array.isArray(data.providers)) {
+        setProviders(data.providers);
+      } else {
+        await loadProviders(false);
+      }
+      toast.success(
+        `${displayName || `Provider #${brandId}`} moved to Serial #${Math.max(
+          1,
+          Math.trunc(serial)
+        )}`
+      );
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update provider serial");
+    } finally {
+      setUpdatingBrandId(null);
+    }
+  };
+
+  const handleMoveProviderOrder = async (
+    brandId: string,
+    direction: -1 | 1,
+    displayName?: string
+  ) => {
+    const currentIndex = providers.findIndex((p) => p.brandId === brandId);
+    if (currentIndex < 0) return;
+    const nextIndex = currentIndex + direction;
+    if (nextIndex < 0 || nextIndex >= providers.length) return;
+    await handleSetProviderSerial(brandId, nextIndex + 1, displayName);
+  };
+
+  const handleUpdateProviderGame = async (
+    game: CatalogGameRow,
+    payload: Record<string, any>,
+    successMsg?: string
+  ) => {
+    const uid = String(game.game_uid);
+    try {
+      setUpdatingGameUid(uid);
+      const res = await fetch("/api/games-management/games", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gameUid: uid,
+          brandId: String(game.brand_id),
+          name: game.name,
+          img: game.logo || `https://igamingapis.com/img/${uid}.png`,
+          category: normalizeCategoryValue(game.category),
+          ...payload,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        toast.error(data?.error || "Failed to update game");
+        return false;
+      }
+      if (successMsg) toast.success(successMsg);
+      await loadCatalogGames(
+        payload.action === "move-top" || payload.sortOrder === 1 ? 0 : gameOffset,
+        selectedBrandId,
+        gameSearch,
+        currencyOnly
+      );
+      return true;
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update game");
+      return false;
+    } finally {
+      setUpdatingGameUid(null);
     }
   };
 
@@ -823,20 +921,27 @@ export default function GamesManagementPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-gray-800">
+                      <TableHead className="w-[70px]">Serial</TableHead>
                       <TableHead className="w-[80px]">Brand #</TableHead>
                       <TableHead>Provider</TableHead>
-                      <TableHead className="w-[170px]">
+                      <TableHead className="w-[165px]">
                         Primary Category
                       </TableHead>
-                      <TableHead className="w-[110px]">Sort Order</TableHead>
+                      <TableHead className="w-[210px]">
+                        Serial Position (1st, 2nd...)
+                      </TableHead>
                       <TableHead>Games</TableHead>
-                      <TableHead className="w-[150px]">Status</TableHead>
+                      <TableHead className="w-[140px]">Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredProviders.map((p) => {
                       const logoBroken = brokenProviderLogos[p.brandId];
+                      const globalIdx = providers.findIndex(
+                        (item) => item.brandId === p.brandId
+                      );
+                      const serialNum = globalIdx >= 0 ? globalIdx + 1 : p.sortOrder;
                       return (
                         <TableRow
                           key={p.brandId}
@@ -844,6 +949,19 @@ export default function GamesManagementPage() {
                             !p.isActive ? "opacity-65 bg-rose-950/10" : ""
                           }`}
                         >
+                          <TableCell>
+                            <Badge
+                              className={`font-mono text-xs ${
+                                serialNum === 1
+                                  ? "bg-amber-500 text-black font-bold"
+                                  : serialNum <= 5
+                                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                                  : "bg-gray-800 text-gray-300"
+                              }`}
+                            >
+                              #{serialNum}
+                            </Badge>
+                          </TableCell>
                           <TableCell className="font-mono text-amber-400 font-semibold">
                             #{p.brandId}
                           </TableCell>
@@ -914,30 +1032,90 @@ export default function GamesManagementPage() {
                             </Select>
                           </TableCell>
                           <TableCell>
-                            <Input
-                              type="number"
-                              defaultValue={p.sortOrder}
-                              key={`${p.brandId}-${p.sortOrder}`}
-                              onBlur={(e) => {
-                                const nextOrder = Number(e.target.value);
-                                if (
-                                  Number.isFinite(nextOrder) &&
-                                  nextOrder !== p.sortOrder
-                                ) {
-                                  updateProviderField(
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                min={1}
+                                defaultValue={serialNum}
+                                key={`${p.brandId}-${serialNum}-${p.sortOrder}`}
+                                disabled={updatingBrandId === p.brandId}
+                                onBlur={(e) => {
+                                  const nextSerial = Number(e.target.value);
+                                  if (
+                                    Number.isFinite(nextSerial) &&
+                                    nextSerial >= 1 &&
+                                    nextSerial !== serialNum
+                                  ) {
+                                    handleSetProviderSerial(
+                                      p.brandId,
+                                      nextSerial,
+                                      p.displayName
+                                    );
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    (e.target as HTMLInputElement).blur();
+                                  }
+                                }}
+                                className="h-8 w-16 text-xs font-mono bg-gray-950 border-gray-800"
+                              />
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                title="Move Up"
+                                disabled={
+                                  updatingBrandId === p.brandId || globalIdx <= 0
+                                }
+                                onClick={() =>
+                                  handleMoveProviderOrder(
                                     p.brandId,
-                                    { sortOrder: nextOrder },
-                                    `Order updated for ${p.displayName}`
-                                  );
+                                    -1,
+                                    p.displayName
+                                  )
                                 }
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  (e.target as HTMLInputElement).blur();
+                                className="h-7 w-7 p-0 text-gray-300 hover:text-white"
+                              >
+                                <ArrowUp className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                title="Move Down"
+                                disabled={
+                                  updatingBrandId === p.brandId ||
+                                  globalIdx < 0 ||
+                                  globalIdx >= providers.length - 1
                                 }
-                              }}
-                              className="h-8 w-20 text-xs font-mono bg-gray-950 border-gray-800"
-                            />
+                                onClick={() =>
+                                  handleMoveProviderOrder(
+                                    p.brandId,
+                                    1,
+                                    p.displayName
+                                  )
+                                }
+                                className="h-7 w-7 p-0 text-gray-300 hover:text-white"
+                              >
+                                <ArrowDown className="w-3.5 h-3.5" />
+                              </Button>
+                              {serialNum !== 1 && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={updatingBrandId === p.brandId}
+                                  onClick={() =>
+                                    handleSetProviderSerial(
+                                      p.brandId,
+                                      1,
+                                      p.displayName
+                                    )
+                                  }
+                                  className="h-7 px-2 text-[10px] font-bold border-amber-500/40 text-amber-400 hover:bg-amber-500/15"
+                                >
+                                  #1 Top
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -1005,7 +1183,7 @@ export default function GamesManagementPage() {
                                   );
                                 }}
                               >
-                                View Games
+                                Games &amp; Serial
                               </Button>
                             </div>
                           </TableCell>
@@ -1016,7 +1194,7 @@ export default function GamesManagementPage() {
                     {filteredProviders.length === 0 && (
                       <TableRow>
                         <TableCell
-                          colSpan={7}
+                          colSpan={8}
                           className="text-center py-10 text-gray-500 text-sm"
                         >
                           No providers match your filters.
@@ -1175,68 +1353,179 @@ export default function GamesManagementPage() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {games.map((g) => {
+                    {games.map((g, idx) => {
                       const imgBroken = brokenGameImgs[g.game_uid];
                       const thumb =
                         g.logo ||
                         `https://igamingapis.com/img/${g.game_uid}.png`;
+                      const currentSerial =
+                        g.hasCustomOrder && g.sortOrder && g.sortOrder < 9999
+                          ? g.sortOrder
+                          : g.providerSerial ?? gameOffset + idx + 1;
+                      const isGameActive = g.isGameActive !== false;
+
                       return (
                         <div
                           key={`${g.game_uid}-${g.brand_id}`}
                           className={`rounded-xl border overflow-hidden flex flex-col justify-between transition-all ${
-                            g.isHot
+                            !isGameActive
+                              ? "border-rose-900/50 bg-rose-950/10 opacity-70"
+                              : g.isHot
                               ? "border-amber-500/60 bg-amber-950/15"
+                              : g.hasCustomOrder
+                              ? "border-emerald-500/50 bg-emerald-950/10"
                               : "border-gray-800 bg-gray-950/70"
                           }`}
                         >
-                          <div className="p-4 flex items-start gap-3">
-                            {!imgBroken && thumb ? (
-                              <img
-                                src={thumb}
-                                alt={g.name}
-                                className="w-16 h-16 rounded-lg object-cover bg-gray-800 shrink-0"
-                                onError={() =>
-                                  setBrokenGameImgs((prev) => ({
-                                    ...prev,
-                                    [g.game_uid]: true,
-                                  }))
-                                }
-                              />
-                            ) : (
-                              <div className="w-16 h-16 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center text-xs font-bold text-amber-400 shrink-0">
-                                #{g.game_uid}
-                              </div>
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-1">
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] px-1.5 py-0 border-amber-500/30 text-amber-400 font-mono"
-                                >
-                                  UID: {g.game_uid}
-                                </Badge>
-                                {g.isHot && (
-                                  <Badge className="text-[10px] px-1.5 py-0 bg-amber-500 text-black font-bold">
-                                    HOT
+                          <div>
+                            <div className="p-4 flex items-start gap-3">
+                              {!imgBroken && thumb ? (
+                                <img
+                                  src={thumb}
+                                  alt={g.name}
+                                  className="w-16 h-16 rounded-lg object-cover bg-gray-800 shrink-0"
+                                  onError={() =>
+                                    setBrokenGameImgs((prev) => ({
+                                      ...prev,
+                                      [g.game_uid]: true,
+                                    }))
+                                  }
+                                />
+                              ) : (
+                                <div className="w-16 h-16 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center text-xs font-bold text-amber-400 shrink-0">
+                                  #{g.game_uid}
+                                </div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-1">
+                                  <Badge
+                                    className={`text-[10px] px-1.5 py-0 font-mono ${
+                                      g.hasCustomOrder
+                                        ? "bg-emerald-500 text-black font-bold"
+                                        : "bg-gray-800 text-gray-300"
+                                    }`}
+                                  >
+                                    Serial #{currentSerial}
                                   </Badge>
-                                )}
-                              </div>
-                              <h4 className="font-semibold text-white text-sm truncate mt-1">
-                                {g.name}
-                              </h4>
-                              <p className="text-xs text-gray-400 truncate">
-                                {g.provider}{" "}
-                                {!g.providerActive && (
-                                  <span className="text-rose-400">
-                                    (Disabled)
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] px-1.5 py-0 border-amber-500/30 text-amber-400 font-mono"
+                                  >
+                                    UID: {g.game_uid}
+                                  </Badge>
+                                  {g.isHot && (
+                                    <Badge className="text-[10px] px-1.5 py-0 bg-amber-500 text-black font-bold">
+                                      HOT
+                                    </Badge>
+                                  )}
+                                </div>
+                                <h4 className="font-semibold text-white text-sm truncate mt-1">
+                                  {g.name}
+                                </h4>
+                                <p className="text-xs text-gray-400 truncate">
+                                  {g.provider}{" "}
+                                  {!g.providerActive && (
+                                    <span className="text-rose-400">
+                                      (Disabled)
+                                    </span>
+                                  )}
+                                </p>
+                                {g.category && (
+                                  <span className="text-[11px] text-gray-500">
+                                    {g.category}
                                   </span>
                                 )}
-                              </p>
-                              {g.category && (
-                                <span className="text-[11px] text-gray-500">
-                                  {g.category}
+                              </div>
+                            </div>
+
+                            {/* Provider Game Serial & Visibility Control Bar */}
+                            <div className="px-4 py-2 bg-gray-900/80 border-t border-gray-800/80 flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] text-gray-400">
+                                  Serial:
                                 </span>
-                              )}
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  defaultValue={
+                                    g.hasCustomOrder && g.sortOrder
+                                      ? g.sortOrder
+                                      : currentSerial
+                                  }
+                                  key={`serial-${g.game_uid}-${g.sortOrder}-${currentSerial}`}
+                                  disabled={updatingGameUid === g.game_uid}
+                                  onBlur={(e) => {
+                                    const val = Number(e.target.value);
+                                    if (
+                                      Number.isFinite(val) &&
+                                      val >= 1 &&
+                                      val !== g.sortOrder
+                                    ) {
+                                      handleUpdateProviderGame(
+                                        g,
+                                        { sortOrder: Math.trunc(val) },
+                                        `"${g.name}" set to Serial #${Math.trunc(
+                                          val
+                                        )} under ${g.provider}`
+                                      );
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      (e.target as HTMLInputElement).blur();
+                                    }
+                                  }}
+                                  className="h-7 w-14 px-1.5 text-xs font-mono bg-gray-950 border-gray-700"
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={updatingGameUid === g.game_uid}
+                                  onClick={() =>
+                                    handleUpdateProviderGame(
+                                      g,
+                                      { action: "move-top" },
+                                      `"${g.name}" moved to #1 under ${g.provider}`
+                                    )
+                                  }
+                                  className="h-7 px-2 text-[10px] font-bold border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/15"
+                                >
+                                  #1 Top
+                                </Button>
+                                {g.hasCustomOrder && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={updatingGameUid === g.game_uid}
+                                    onClick={() =>
+                                      handleUpdateProviderGame(
+                                        g,
+                                        { action: "reset-serial" },
+                                        `Reset serial for "${g.name}"`
+                                      )
+                                    }
+                                    className="h-7 px-1.5 text-[10px] text-gray-400 hover:text-white"
+                                  >
+                                    Reset
+                                  </Button>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-1.5">
+                                <Switch
+                                  checked={isGameActive}
+                                  disabled={updatingGameUid === g.game_uid}
+                                  onCheckedChange={(checked) =>
+                                    handleUpdateProviderGame(
+                                      g,
+                                      { isActive: checked },
+                                      `"${g.name}" is now ${
+                                        checked ? "Active" : "Hidden"
+                                      }`
+                                    )
+                                  }
+                                />
+                              </div>
                             </div>
                           </div>
 

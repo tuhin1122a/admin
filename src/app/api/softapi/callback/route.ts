@@ -159,7 +159,14 @@ export async function POST(req: NextRequest) {
       return new NextResponse("OK", { status: 200 });
     }
 
-    // Reconcile player wallet balance from credit_amount & update betting record
+    // Reconcile player wallet balance from credit_amount & update betting record + betHistory
+    const roundStatus =
+      winAmount > betAmount
+        ? "WIN"
+        : winAmount === betAmount && betAmount > 0
+        ? "REFUND"
+        : "LOSS";
+
     await db.$transaction(async (tx) => {
       if (matchedUser?.wallet) {
         await tx.wallet.update({
@@ -188,6 +195,29 @@ export async function POST(req: NextRequest) {
           },
         });
       }
+
+      await tx.betHistory.upsert({
+        where: { serialNumber: serial },
+        create: {
+          serialNumber: serial,
+          userId: matchedUser.id,
+          memberAccount,
+          gameUid: gameUid || "unknown",
+          gameName: gameName || `Game #${gameUid || "unknown"}`,
+          gameRound: gameRound || null,
+          betAmount,
+          winAmount,
+          creditAmount,
+          status: roundStatus,
+          freeSpinBonus: freeSpinBonus || null,
+        },
+        update: {
+          betAmount,
+          winAmount,
+          creditAmount,
+          status: roundStatus,
+        },
+      });
     });
 
     appendCallbackLog({

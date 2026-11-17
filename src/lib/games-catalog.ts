@@ -320,7 +320,7 @@ export async function fetchSoftApiGames(params: {
 }> {
   const brandId = params.brandId && params.brandId !== "all" ? params.brandId : "";
   const q = (params.q || "").trim();
-  const limit = Math.min(Math.max(params.limit || 24, 1), 100);
+  const limit = Math.min(Math.max(params.limit || 24, 1), 500);
   const offset = Math.max(params.offset || 0, 0);
   const currencySupported = Boolean(params.currencySupported);
 

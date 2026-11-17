@@ -8,6 +8,25 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// ====================== Site Configuration ======================
+model Banner {
+  id        String   @id @default(cuid())
+  imageUrl  String
+  title     String?
+  linkUrl   String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SiteConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 model User {
   id                  String                @id @default(cuid())
   phone               String                @unique
@@ -36,6 +55,7 @@ model User {
   durantoPayDeposits  DurantoPayDeposit[]
   durantoPayWithdraws DurantoPayWithdraw[]
   bettingRecord       BettingRecord?
+  betHistories        BetHistory[]
 
   // Affiliate system relations
   affiliateReferrals AffiliateReferral[] @relation("AffiliateReferrals")
@@ -317,13 +337,6 @@ model SiteSetting {
   promotionsLogo String?
 }
 
-model SiteConfig {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  value     String
-  updatedAt DateTime @updatedAt
-}
-
 enum NotificationIcon {
   MONEY
   BELL
@@ -576,4 +589,45 @@ model HotGame {
 
   @@index([isActive, sortOrder])
   @@index([brandId])
+}
+
+model ProviderGameSetting {
+  id         String   @id @default(cuid())
+  gameUid    String   @unique
+  brandId    String
+  name       String
+  customName String?
+  img        String?
+  category   String?
+  isActive   Boolean  @default(true)
+  sortOrder  Int      @default(9999)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([brandId, sortOrder])
+  @@index([isActive, sortOrder])
+}
+
+model BetHistory {
+  id            String   @id @default(cuid())
+  serialNumber  String   @unique
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberAccount String
+  gameUid       String
+  gameName      String
+  provider      String?
+  brandId       String?
+  category      String?
+  gameRound     String?
+  betAmount     Decimal  @db.Decimal(18, 2) @default(0)
+  winAmount     Decimal  @db.Decimal(18, 2) @default(0)
+  creditAmount  Decimal  @db.Decimal(18, 2) @default(0)
+  status        String   @default("LOSS")
+  freeSpinBonus String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@index([status])
 }
