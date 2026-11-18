@@ -23,12 +23,12 @@ interface AppVersionConfig {
 
 export default function AppVersionPage() {
   const [config, setConfig] = useState<AppVersionConfig>({
-    latestVersion: "1.0.2",
-    versionCode: 3,
+    latestVersion: "1.0.3",
+    versionCode: 4,
     minVersion: "1.0.0",
     forceUpdate: false,
     downloadUrl: "https://rk444.site/download/rk444.apk",
-    releaseNotes: "• 1xBet-style 3D animated startup machine with falling balls\n• RK444 neon lighting & energy helix\n• Real-time offline connection guard",
+    releaseNotes: "• 100% Real Fresh Live Data (No dummy data, zero stale cache)\n• 1xBet 3D machine startup\n• Instant fresh catalog preloading",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

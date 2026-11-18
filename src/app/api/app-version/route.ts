@@ -5,12 +5,12 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 export const DEFAULT_CONFIG = {
-  latestVersion: "1.0.2",
-  versionCode: 3,
+  latestVersion: "1.0.3",
+  versionCode: 4,
   minVersion: "1.0.0",
   forceUpdate: false,
   downloadUrl: "https://rk444.site/download/rk444.apk",
-  releaseNotes: "• 1xBet-style 3D animated startup machine with falling balls\n• RK444 neon lighting & energy helix\n• Real-time offline connection guard",
+  releaseNotes: "• 100% Real Fresh Live Data (No dummy data, zero stale cache)\n• 1xBet 3D machine startup\n• Instant fresh catalog preloading",
 };
 
 export async function GET() {
