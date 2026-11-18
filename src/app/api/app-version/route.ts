@@ -1,16 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { auth } from "@/auth";
+import { db } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
 export const DEFAULT_CONFIG = {
-  latestVersion: "1.0.1",
-  versionCode: 2,
+  latestVersion: "1.0.2",
+  versionCode: 3,
   minVersion: "1.0.0",
   forceUpdate: false,
   downloadUrl: "https://rk444.site/download/rk444.apk",
-  releaseNotes: "• New animated RK444 startup screen\n• Real-time offline connection guard\n• Enhanced performance and stability",
+  releaseNotes: "• 1xBet-style 3D animated startup machine with falling balls\n• RK444 neon lighting & energy helix\n• Real-time offline connection guard",
 };
 
 export async function GET() {
