@@ -1,37 +1,61 @@
 import { PrismaClient } from "@prisma/client";
 
-const SUPABASE_TRANSACTION_POOLER_URL =
-  "postgresql://postgres.xcfditzqdvgwhcmdcztm:Tuhin%40Akhi1122@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1";
+const DEFAULT_CONNECTION_LIMIT = process.env.PRISMA_CONNECTION_LIMIT || "10";
+const DEFAULT_POOL_TIMEOUT = process.env.PRISMA_POOL_TIMEOUT || "20";
+const DEFAULT_CONNECT_TIMEOUT = process.env.PRISMA_CONNECT_TIMEOUT || "10";
 
 export function resolveValidDatabaseUrl(raw?: string): string {
-  if (!raw) return SUPABASE_TRANSACTION_POOLER_URL;
-  let cleaned = raw
+  if (!raw || !raw.trim()) {
+    return "";
+  }
+
+  const cleaned = raw
     .trim()
     .replace(/^DATABASE_URL\s*=\s*/i, "")
     .replace(/^["']+|["']+$/g, "")
     .trim();
 
   if (
-    (!cleaned.startsWith("postgresql://") && !cleaned.startsWith("postgres://")) ||
-    cleaned.includes("localhost") ||
-    cleaned.includes("127.0.0.1")
+    !cleaned.startsWith("postgresql://") &&
+    !cleaned.startsWith("postgres://")
   ) {
-    return SUPABASE_TRANSACTION_POOLER_URL;
+    return cleaned;
   }
 
-  if (cleaned.includes(".pooler.supabase.com:5432")) {
-    cleaned = cleaned.replace(".pooler.supabase.com:5432", ".pooler.supabase.com:6543");
-  }
-  if (cleaned.includes(".pooler.supabase.com:6543") && !cleaned.includes("pgbouncer=true")) {
-    const sep = cleaned.includes("?") ? "&" : "?";
-    cleaned = `${cleaned}${sep}pgbouncer=true&connection_limit=1`;
-  }
+  try {
+    const parsed = new URL(cleaned);
 
-  return cleaned;
+    if (!parsed.hostname.includes("pooler.supabase.com")) {
+      parsed.searchParams.delete("pgbouncer");
+    }
+
+    const currentLimit = parsed.searchParams.get("connection_limit");
+    if (!currentLimit || currentLimit === "1") {
+      parsed.searchParams.set("connection_limit", DEFAULT_CONNECTION_LIMIT);
+    }
+
+    if (!parsed.searchParams.get("pool_timeout")) {
+      parsed.searchParams.set("pool_timeout", DEFAULT_POOL_TIMEOUT);
+    }
+
+    if (!parsed.searchParams.get("connect_timeout")) {
+      parsed.searchParams.set("connect_timeout", DEFAULT_CONNECT_TIMEOUT);
+    }
+
+    if (!parsed.searchParams.get("schema")) {
+      parsed.searchParams.set("schema", "public");
+    }
+
+    return parsed.toString();
+  } catch {
+    return cleaned;
+  }
 }
 
 const effectiveDatabaseUrl = resolveValidDatabaseUrl(process.env.DATABASE_URL);
-process.env.DATABASE_URL = effectiveDatabaseUrl;
+if (effectiveDatabaseUrl) {
+  process.env.DATABASE_URL = effectiveDatabaseUrl;
+}
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -40,11 +64,15 @@ const globalForPrisma = globalThis as unknown as {
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
-    datasources: {
-      db: {
-        url: effectiveDatabaseUrl,
-      },
-    },
+    ...(effectiveDatabaseUrl
+      ? {
+          datasources: {
+            db: {
+              url: effectiveDatabaseUrl,
+            },
+          },
+        }
+      : {}),
     log: ["error", "warn"],
   });
 

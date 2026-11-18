@@ -162,48 +162,66 @@ export const PUT = async (req: Request) => {
         { status: 400 }
       );
     }
-    const payload: Prisma.DepositUpdateInput = {};
+
     if (actionType == "approve") {
-      payload.status = "APPROVED";
+      const approved = await db.$transaction(
+        async (tx) => {
+          // Conditional atomic status transition prevents double-crediting on concurrent clicks
+          const statusUpdated = await tx.deposit.updateMany({
+            where: { id: depositId, status: "PENDING" },
+            data: { status: "APPROVED" },
+          });
 
-      await db.wallet.update({
-        where: { userId: deposit.user.id },
-        data: {
-          balance: { increment: deposit.amount },
-          turnOver: { increment: deposit.amount },
-          signinBonus: false,
-        },
-      });
+          if (statusUpdated.count === 0) {
+            return false;
+          }
 
-      const approvedDepositsCount = await db.deposit.count({
-        where: {
-          userId: deposit.user.id,
-          status: "APPROVED",
-        },
-      });
-
-      if (approvedDepositsCount === 0) {
-        if (deposit.user.invitedById) {
-          await db.invitationBonus.update({
+          const previousApprovedCount = await tx.deposit.count({
             where: {
-              userId: deposit.user.invitedById,
-            },
-            data: {
-              totalValidreferral: {
-                increment: 1,
-              },
+              userId: deposit.user.id,
+              status: "APPROVED",
+              id: { not: depositId },
             },
           });
-        }
+
+          await tx.wallet.update({
+            where: { userId: deposit.user.id },
+            data: {
+              balance: { increment: deposit.amount },
+              turnOver: { increment: deposit.amount },
+              signinBonus: false,
+            },
+          });
+
+          if (previousApprovedCount === 0 && deposit.user.invitedById) {
+            await tx.invitationBonus
+              .update({
+                where: { userId: deposit.user.invitedById },
+                data: {
+                  totalValidreferral: { increment: 1 },
+                },
+              })
+              .catch(() => {});
+          }
+
+          return true;
+        },
+        { maxWait: 5000, timeout: 10000 }
+      );
+
+      if (!approved) {
+        return NextResponse.json(
+          { error: "This deposit has already been processed" },
+          { status: 400 }
+        );
       }
 
-      const signinRewards = await db.signinBonusRewards.findMany({
-        where: {},
-      });
-
-      const claimedSigninRewards = await db.claimedSigninReward.findMany({
-        where: { userId: deposit.user.id, isClamed: true },
-      });
+      const [signinRewards, claimedSigninRewards] = await Promise.all([
+        db.signinBonusRewards.findMany(),
+        db.claimedSigninReward.findMany({
+          where: { userId: deposit.user.id, isClamed: true },
+        }),
+      ]);
 
       const lastReward = signinRewards.find((signinReward) => {
         return !claimedSigninRewards.some(
@@ -212,41 +230,40 @@ export const PUT = async (req: Request) => {
       });
 
       if (lastReward && +deposit.amount >= lastReward.prize) {
-  // Check if a claimed reward already exists for this user and deposit
-  const existingClaim = await db.claimedSigninReward.findFirst({
-    where: {
-      userId: deposit.userId,
-      depositId: deposit.id,
-    },
-  });
+        const existingClaim = await db.claimedSigninReward.findFirst({
+          where: {
+            userId: deposit.userId,
+            depositId: deposit.id,
+          },
+        });
 
-  if (!existingClaim) {
-    try {
-      await db.claimedSigninReward.create({
-        data: {
-          userId: deposit.userId,
-          rewardId: lastReward!.id,
-          depositId: deposit.id,
-        },
-      });
-    } catch (e) {
-      if (
-        e instanceof Prisma.PrismaClientKnownRequestError &&
-        e.code === "P2002"
-      ) {
-        // Unique constraint violation: another request created it concurrently — ignore
-      } else {
-        throw e;
+        if (!existingClaim) {
+          try {
+            await db.claimedSigninReward.create({
+              data: {
+                userId: deposit.userId,
+                rewardId: lastReward.id,
+                depositId: deposit.id,
+              },
+            });
+          } catch (e) {
+            if (
+              !(
+                e instanceof Prisma.PrismaClientKnownRequestError &&
+                e.code === "P2002"
+              )
+            ) {
+              throw e;
+            }
+          }
+        }
       }
-    }
-  }
-}
     } else if (actionType == "reject") {
-      payload.status = "REJECTED";
-      // handle any message notification
+      await db.deposit.updateMany({
+        where: { id: depositId, status: "PENDING" },
+        data: { status: "REJECTED" },
+      });
     }
-
-    await db.deposit.update({ where: { id: depositId }, data: payload });
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {

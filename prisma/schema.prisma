@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ====================== Site Configuration ======================
@@ -261,6 +260,9 @@ model Deposit {
   user                User                 @relation(fields: [userId], references: [id])
   createdAt           DateTime             @default(now())
   ClaimedSigninReward ClaimedSigninReward?
+
+  @@index([userId, createdAt])
+  @@index([status])
 }
 
 model CardContainer {
@@ -301,6 +303,9 @@ model Withdraw {
   card      Card           @relation(fields: [cardId], references: [id])
   userId    String
   user      User           @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([status])
 }
 
 enum ManagementRole {
@@ -631,6 +636,7 @@ model BetHistory {
   createdAt     DateTime @default(now())
 
   @@index([userId, createdAt])
+  @@index([memberAccount])
   @@index([createdAt])
   @@index([status])
 }

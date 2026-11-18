@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import {
   getSoftApiConfig,
   softApiDecrypt,
@@ -80,12 +81,13 @@ export async function POST(req: NextRequest) {
       return new NextResponse("OK", { status: 200 });
     }
 
-    // Check database idempotency via Transaction table if available
+    // Check database idempotency via BetHistory or Transaction table if available
     try {
-      const existingTx = await db.transaction.findUnique({
-        where: { transactionId: serial },
-      });
-      if (existingTx) {
+      const [existingBet, existingTx] = await Promise.all([
+        db.betHistory.findUnique({ where: { serialNumber: serial } }),
+        db.transaction.findUnique({ where: { transactionId: serial } }),
+      ]);
+      if (existingBet || existingTx) {
         appendCallbackLog({
           serial_number: serial,
           member_account: memberAccount,
@@ -99,12 +101,12 @@ export async function POST(req: NextRequest) {
           timestamp: String(data.timestamp || ""),
           receivedAt: new Date().toISOString(),
           status: "DUPLICATE",
-          note: "Already stored in Transaction table",
+          note: "Already stored in BetHistory/Transaction table",
         });
         return new NextResponse("OK", { status: 200 });
       }
     } catch {
-      // continue if Transaction check fails
+      // continue if check fails
     }
 
     // Find matching User in database (by playerId, id, phone, or numeric hash match)
@@ -167,58 +169,70 @@ export async function POST(req: NextRequest) {
         ? "REFUND"
         : "LOSS";
 
-    await db.$transaction(async (tx) => {
-      if (matchedUser?.wallet) {
-        await tx.wallet.update({
-          where: { userId: matchedUser.id },
-          data: {
-            balance: creditAmount,
-            turnOver: { increment: betAmount },
-          },
-        });
-      }
+    try {
+      await db.$transaction(
+        async (tx) => {
+          // 1. Insert BetHistory first — unique constraint on serialNumber guarantees idempotency
+          await tx.betHistory.create({
+            data: {
+              serialNumber: serial,
+              userId: matchedUser.id,
+              memberAccount,
+              gameUid: gameUid || "unknown",
+              gameName: gameName || `Game #${gameUid || "unknown"}`,
+              gameRound: gameRound || null,
+              betAmount,
+              winAmount,
+              creditAmount,
+              status: roundStatus,
+              freeSpinBonus: freeSpinBonus || null,
+            },
+          });
 
-      if (matchedUser?.bettingRecord) {
-        await tx.bettingRecord.update({
-          where: { userId: matchedUser.id },
-          data: {
-            totalBet: { increment: betAmount },
-            totalWin: { increment: winAmount },
-          },
-        });
-      } else {
-        await tx.bettingRecord.create({
-          data: {
-            userId: matchedUser.id,
-            totalBet: betAmount,
-            totalWin: winAmount,
-          },
-        });
-      }
+          if (matchedUser?.wallet) {
+            const currentTurnover = Number(matchedUser.wallet.turnOver || 0);
+            const deductedTurnover =
+              betAmount > 0
+                ? Math.max(0, Number((currentTurnover - betAmount).toFixed(2)))
+                : currentTurnover;
+            const nextTurnover = creditAmount < 1 ? 0 : deductedTurnover;
 
-      await tx.betHistory.upsert({
-        where: { serialNumber: serial },
-        create: {
-          serialNumber: serial,
-          userId: matchedUser.id,
-          memberAccount,
-          gameUid: gameUid || "unknown",
-          gameName: gameName || `Game #${gameUid || "unknown"}`,
-          gameRound: gameRound || null,
-          betAmount,
-          winAmount,
-          creditAmount,
-          status: roundStatus,
-          freeSpinBonus: freeSpinBonus || null,
+            await tx.wallet.update({
+              where: { userId: matchedUser.id },
+              data: {
+                balance: creditAmount,
+                turnOver: nextTurnover,
+              },
+            });
+          }
+
+          await tx.bettingRecord.upsert({
+            where: { userId: matchedUser.id },
+            create: {
+              userId: matchedUser.id,
+              totalBet: betAmount,
+              totalWin: winAmount,
+            },
+            update: {
+              totalBet: { increment: betAmount },
+              totalWin: { increment: winAmount },
+            },
+          });
         },
-        update: {
-          betAmount,
-          winAmount,
-          creditAmount,
-          status: roundStatus,
-        },
-      });
-    });
+        {
+          maxWait: 5000,
+          timeout: 10000,
+        }
+      );
+    } catch (txErr: any) {
+      if (
+        txErr instanceof Prisma.PrismaClientKnownRequestError &&
+        txErr.code === "P2002"
+      ) {
+        return new NextResponse("OK", { status: 200 });
+      }
+      throw txErr;
+    }
 
     appendCallbackLog({
       serial_number: serial,
