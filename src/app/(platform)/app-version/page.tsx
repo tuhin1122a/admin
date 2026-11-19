@@ -23,8 +23,8 @@ interface AppVersionConfig {
 
 export default function AppVersionPage() {
   const [config, setConfig] = useState<AppVersionConfig>({
-    latestVersion: "1.0.4",
-    versionCode: 5,
+    latestVersion: "1.0.5",
+    versionCode: 6,
     minVersion: "1.0.0",
     forceUpdate: false,
     downloadUrl: "https://rk444.site/download/rk444.apk",

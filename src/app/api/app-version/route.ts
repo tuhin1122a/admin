@@ -5,8 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 export const DEFAULT_CONFIG = {
-  latestVersion: "1.0.4",
-  versionCode: 5,
+  latestVersion: "1.0.5",
+  versionCode: 6,
   minVersion: "1.0.0",
   forceUpdate: false,
   downloadUrl: "https://rk444.site/download/rk444.apk",
