@@ -1352,215 +1352,262 @@ export default function GamesManagementPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {games.map((g, idx) => {
-                      const imgBroken = brokenGameImgs[g.game_uid];
-                      const thumb =
-                        g.logo ||
-                        `https://igamingapis.com/img/${g.game_uid}.png`;
-                      const currentSerial =
-                        g.hasCustomOrder && g.sortOrder && g.sortOrder < 9999
-                          ? g.sortOrder
-                          : g.providerSerial ?? gameOffset + idx + 1;
-                      const isGameActive = g.isGameActive !== false;
+                  <div className="rounded-md border border-gray-800 overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-gray-950/70">
+                        <TableRow className="border-gray-800 hover:bg-transparent">
+                          <TableHead className="w-[190px] text-gray-400">
+                            Serial
+                          </TableHead>
+                          <TableHead className="text-gray-400">Game</TableHead>
+                          <TableHead className="text-gray-400">UID</TableHead>
+                          <TableHead className="text-gray-400">
+                            Provider
+                          </TableHead>
+                          <TableHead className="text-gray-400">
+                            Category
+                          </TableHead>
+                          <TableHead className="text-gray-400">
+                            Status
+                          </TableHead>
+                          <TableHead className="text-right text-gray-400">
+                            Actions
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {games.map((g, idx) => {
+                          const imgBroken = brokenGameImgs[g.game_uid];
+                          const thumb =
+                            g.logo ||
+                            `https://igamingapis.com/img/${g.game_uid}.png`;
+                          const currentSerial =
+                            g.hasCustomOrder &&
+                            g.sortOrder &&
+                            g.sortOrder < 9999
+                              ? g.sortOrder
+                              : g.providerSerial ?? gameOffset + idx + 1;
+                          const isGameActive = g.isGameActive !== false;
 
-                      return (
-                        <div
-                          key={`${g.game_uid}-${g.brand_id}`}
-                          className={`rounded-xl border overflow-hidden flex flex-col justify-between transition-all ${
-                            !isGameActive
-                              ? "border-rose-900/50 bg-rose-950/10 opacity-70"
-                              : g.isHot
-                              ? "border-amber-500/60 bg-amber-950/15"
-                              : g.hasCustomOrder
-                              ? "border-emerald-500/50 bg-emerald-950/10"
-                              : "border-gray-800 bg-gray-950/70"
-                          }`}
-                        >
-                          <div>
-                            <div className="p-4 flex items-start gap-3">
-                              {!imgBroken && thumb ? (
-                                <img
-                                  src={thumb}
-                                  alt={g.name}
-                                  className="w-16 h-16 rounded-lg object-cover bg-gray-800 shrink-0"
-                                  onError={() =>
-                                    setBrokenGameImgs((prev) => ({
-                                      ...prev,
-                                      [g.game_uid]: true,
-                                    }))
-                                  }
-                                />
-                              ) : (
-                                <div className="w-16 h-16 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center text-xs font-bold text-amber-400 shrink-0">
-                                  #{g.game_uid}
-                                </div>
-                              )}
-                              <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-center gap-1">
-                                  <Badge
-                                    className={`text-[10px] px-1.5 py-0 font-mono ${
-                                      g.hasCustomOrder
-                                        ? "bg-emerald-500 text-black font-bold"
-                                        : "bg-gray-800 text-gray-300"
-                                    }`}
-                                  >
-                                    Serial #{currentSerial}
-                                  </Badge>
-                                  <Badge
-                                    variant="outline"
-                                    className="text-[10px] px-1.5 py-0 border-amber-500/30 text-amber-400 font-mono"
-                                  >
-                                    UID: {g.game_uid}
-                                  </Badge>
-                                  {g.isHot && (
-                                    <Badge className="text-[10px] px-1.5 py-0 bg-amber-500 text-black font-bold">
-                                      HOT
-                                    </Badge>
-                                  )}
-                                </div>
-                                <h4 className="font-semibold text-white text-sm truncate mt-1">
-                                  {g.name}
-                                </h4>
-                                <p className="text-xs text-gray-400 truncate">
-                                  {g.provider}{" "}
-                                  {!g.providerActive && (
-                                    <span className="text-rose-400">
-                                      (Disabled)
-                                    </span>
-                                  )}
-                                </p>
-                                {g.category && (
-                                  <span className="text-[11px] text-gray-500">
-                                    {g.category}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Provider Game Serial & Visibility Control Bar */}
-                            <div className="px-4 py-2 bg-gray-900/80 border-t border-gray-800/80 flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[11px] text-gray-400">
-                                  Serial:
-                                </span>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  defaultValue={
-                                    g.hasCustomOrder && g.sortOrder
-                                      ? g.sortOrder
-                                      : currentSerial
-                                  }
-                                  key={`serial-${g.game_uid}-${g.sortOrder}-${currentSerial}`}
-                                  disabled={updatingGameUid === g.game_uid}
-                                  onBlur={(e) => {
-                                    const val = Number(e.target.value);
-                                    if (
-                                      Number.isFinite(val) &&
-                                      val >= 1 &&
-                                      val !== g.sortOrder
-                                    ) {
-                                      handleUpdateProviderGame(
-                                        g,
-                                        { sortOrder: Math.trunc(val) },
-                                        `"${g.name}" set to Serial #${Math.trunc(
-                                          val
-                                        )} under ${g.provider}`
-                                      );
+                          return (
+                            <TableRow
+                              key={`${g.game_uid}-${g.brand_id}`}
+                              className={`border-gray-800 transition-colors ${
+                                !isGameActive
+                                  ? "bg-rose-950/10 opacity-70"
+                                  : g.isHot
+                                  ? "bg-amber-950/10 hover:bg-amber-950/20"
+                                  : "hover:bg-gray-800/40"
+                              }`}
+                            >
+                              {/* Serial */}
+                              <TableCell>
+                                <div className="flex items-center gap-1.5">
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    defaultValue={
+                                      g.hasCustomOrder && g.sortOrder
+                                        ? g.sortOrder
+                                        : currentSerial
                                     }
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      (e.target as HTMLInputElement).blur();
-                                    }
-                                  }}
-                                  className="h-7 w-14 px-1.5 text-xs font-mono bg-gray-950 border-gray-700"
-                                />
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={updatingGameUid === g.game_uid}
-                                  onClick={() =>
-                                    handleUpdateProviderGame(
-                                      g,
-                                      { action: "move-top" },
-                                      `"${g.name}" moved to #1 under ${g.provider}`
-                                    )
-                                  }
-                                  className="h-7 px-2 text-[10px] font-bold border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/15"
-                                >
-                                  #1 Top
-                                </Button>
-                                {g.hasCustomOrder && (
+                                    key={`serial-${g.game_uid}-${g.sortOrder}-${currentSerial}`}
+                                    disabled={updatingGameUid === g.game_uid}
+                                    onBlur={(e) => {
+                                      const val = Number(e.target.value);
+                                      if (
+                                        Number.isFinite(val) &&
+                                        val >= 1 &&
+                                        val !== g.sortOrder
+                                      ) {
+                                        handleUpdateProviderGame(
+                                          g,
+                                          { sortOrder: Math.trunc(val) },
+                                          `"${g.name}" set to Serial #${Math.trunc(
+                                            val
+                                          )} under ${g.provider}`
+                                        );
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        (e.target as HTMLInputElement).blur();
+                                      }
+                                    }}
+                                    className="h-7 w-14 px-1.5 text-xs font-mono bg-gray-950 border-gray-700"
+                                  />
                                   <Button
                                     size="sm"
-                                    variant="ghost"
+                                    variant="outline"
                                     disabled={updatingGameUid === g.game_uid}
                                     onClick={() =>
                                       handleUpdateProviderGame(
                                         g,
-                                        { action: "reset-serial" },
-                                        `Reset serial for "${g.name}"`
+                                        { action: "move-top" },
+                                        `"${g.name}" moved to #1 under ${g.provider}`
                                       )
                                     }
-                                    className="h-7 px-1.5 text-[10px] text-gray-400 hover:text-white"
+                                    className="h-7 px-2 text-[10px] font-bold border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/15"
                                   >
-                                    Reset
+                                    #1 Top
                                   </Button>
-                                )}
-                              </div>
+                                  {g.hasCustomOrder && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      disabled={updatingGameUid === g.game_uid}
+                                      onClick={() =>
+                                        handleUpdateProviderGame(
+                                          g,
+                                          { action: "reset-serial" },
+                                          `Reset serial for "${g.name}"`
+                                        )
+                                      }
+                                      className="h-7 px-1.5 text-[10px] text-gray-400 hover:text-white"
+                                    >
+                                      Reset
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
 
-                              <div className="flex items-center gap-1.5">
-                                <Switch
-                                  checked={isGameActive}
-                                  disabled={updatingGameUid === g.game_uid}
-                                  onCheckedChange={(checked) =>
-                                    handleUpdateProviderGame(
-                                      g,
-                                      { isActive: checked },
-                                      `"${g.name}" is now ${
-                                        checked ? "Active" : "Hidden"
-                                      }`
-                                    )
-                                  }
-                                />
-                              </div>
-                            </div>
-                          </div>
+                              {/* Game Thumbnail + Name */}
+                              <TableCell>
+                                <div className="flex items-center gap-3 min-w-[180px]">
+                                  {!imgBroken && thumb ? (
+                                    <img
+                                      src={thumb}
+                                      alt={g.name}
+                                      className="w-11 h-11 rounded-lg object-cover bg-gray-800 shrink-0 border border-gray-700/60"
+                                      onError={() =>
+                                        setBrokenGameImgs((prev) => ({
+                                          ...prev,
+                                          [g.game_uid]: true,
+                                        }))
+                                      }
+                                    />
+                                  ) : (
+                                    <div className="w-11 h-11 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center text-[10px] font-bold text-amber-400 shrink-0">
+                                      #{g.game_uid}
+                                    </div>
+                                  )}
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="font-semibold text-white text-sm truncate max-w-[220px]">
+                                        {g.name}
+                                      </span>
+                                      {g.isHot && (
+                                        <Badge className="text-[10px] px-1.5 py-0 bg-amber-500 text-black font-bold shrink-0">
+                                          HOT
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    {g.hasCustomOrder && (
+                                      <span className="text-[10px] text-emerald-400 font-medium">
+                                        Custom Serial #{currentSerial}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </TableCell>
 
-                          <div className="px-4 pb-3 pt-2 border-t border-gray-800/80 flex items-center justify-between gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={launchingDemoUid === g.game_uid}
-                              onClick={() =>
-                                handleDemoLaunch(g.game_uid, g.name)
-                              }
-                              className="h-8 px-2.5 text-xs border-gray-700"
-                            >
-                              {launchingDemoUid === g.game_uid
-                                ? "Opening..."
-                                : "Demo"}
-                            </Button>
+                              {/* UID */}
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className="text-[11px] px-2 py-0.5 border-amber-500/30 text-amber-400 font-mono"
+                                >
+                                  {g.game_uid}
+                                </Badge>
+                              </TableCell>
 
-                            <Button
-                              size="sm"
-                              disabled={togglingHotUid === g.game_uid}
-                              onClick={() => handleToggleGameHot(g)}
-                              className={`h-8 px-3 text-xs font-semibold flex-1 ${
-                                g.isHot
-                                  ? "bg-amber-500 hover:bg-amber-600 text-black"
-                                  : "bg-gray-800 hover:bg-emerald-600 text-white"
-                              }`}
-                            >
-                              <Flame className="w-3.5 h-3.5 mr-1" />
-                              {g.isHot ? "Hot (Remove)" : "+ Add to Hot"}
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                              {/* Provider */}
+                              <TableCell>
+                                <div className="text-xs text-gray-200 font-medium">
+                                  {g.provider}
+                                  {!g.providerActive && (
+                                    <span className="ml-1 text-rose-400">
+                                      (Disabled)
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
+
+                              {/* Category */}
+                              <TableCell>
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[11px] capitalize bg-gray-800 text-gray-300"
+                                >
+                                  {g.category || "slots"}
+                                </Badge>
+                              </TableCell>
+
+                              {/* Active Status Switch */}
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Switch
+                                    checked={isGameActive}
+                                    disabled={updatingGameUid === g.game_uid}
+                                    onCheckedChange={(checked) =>
+                                      handleUpdateProviderGame(
+                                        g,
+                                        { isActive: checked },
+                                        `"${g.name}" is now ${
+                                          checked ? "Active" : "Hidden"
+                                        }`
+                                      )
+                                    }
+                                  />
+                                  <span
+                                    className={`text-xs font-semibold ${
+                                      isGameActive
+                                        ? "text-emerald-400"
+                                        : "text-rose-400"
+                                    }`}
+                                  >
+                                    {isGameActive ? "Active" : "Hidden"}
+                                  </span>
+                                </div>
+                              </TableCell>
+
+                              {/* Actions: Demo & Add/Remove Hot */}
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={launchingDemoUid === g.game_uid}
+                                    onClick={() =>
+                                      handleDemoLaunch(g.game_uid, g.name)
+                                    }
+                                    className="h-7 px-2.5 text-xs border-gray-700"
+                                  >
+                                    {launchingDemoUid === g.game_uid
+                                      ? "Opening..."
+                                      : "Demo"}
+                                  </Button>
+
+                                  <Button
+                                    size="sm"
+                                    disabled={togglingHotUid === g.game_uid}
+                                    onClick={() => handleToggleGameHot(g)}
+                                    className={`h-7 px-2.5 text-xs font-semibold ${
+                                      g.isHot
+                                        ? "bg-amber-500 hover:bg-amber-600 text-black"
+                                        : "bg-gray-800 hover:bg-emerald-600 text-white"
+                                    }`}
+                                  >
+                                    <Flame className="w-3.5 h-3.5 mr-1" />
+                                    {g.isHot ? "Hot (Remove)" : "+ Add to Hot"}
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
               ) : (

@@ -21,8 +21,13 @@ const geistMono = Geist_Mono({
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Admin",
-  description: "Admin Panle",
+  title: "RK444 Admin",
+  description: "RK444 Admin Panel",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default async function RootLayout({
