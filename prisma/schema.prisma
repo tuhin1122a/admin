@@ -687,3 +687,23 @@ model LuckyWheelSpin {
 
   @@index([userId])
 }
+
+// ====================== Agent App Auto-Deposit SMS Ledger ======================
+model IncomingSms {
+  id               String    @id @default(cuid())
+  provider         String    // "bKash" | "Nagad" | "Rocket" | "Upay"
+  senderAddress    String
+  senderNumber     String?
+  trxId            String    @unique
+  amount           Decimal   @db.Decimal(12, 2)
+  rawBody          String    @db.Text
+  status           String    @default("UNMATCHED") // "MATCHED" | "UNMATCHED" | "AMOUNT_MISMATCH"
+  matchedDepositId String?
+  matchedUserId    String?
+  note             String?
+  receivedAt       DateTime  @default(now())
+  processedAt      DateTime?
+
+  @@index([status, receivedAt])
+  @@index([provider, receivedAt])
+}
