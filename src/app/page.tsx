@@ -18,6 +18,7 @@ import DepositWithdrowChart from "@/components/home/dp-wp-chart";
 import ChartFilter from "@/components/home/chart-filter";
 import SoftApiStatusBanner from "@/components/home/softapi-status-banner";
 import SubAdminHeader from "@/components/home/sub-admin-header";
+import AgentPayDownloadBanner from "@/components/home/agent-pay-download-banner";
 const App: React.FC = () => {
   const [paymentChartFilter, setPaymentChartFilter] = useState("7days");
 
@@ -298,6 +299,9 @@ const App: React.FC = () => {
 
           {/* SoftAPI Casino Status & GGR Wallet Banner - Super Admin only */}
           {!data?.subAdminInfo?.isSubAdmin && <SoftApiStatusBanner />}
+
+          {/* RK444 Agent Pay APK Download - Mother Admin only (hidden from Sub-Admins/Agents) */}
+          {!data?.subAdminInfo?.isSubAdmin && <AgentPayDownloadBanner />}
 
           {/* Stats Cards */}
           <Statistics
