@@ -3,14 +3,14 @@ import { db } from "@/lib/db";
 import { auth } from "@/auth";
 
 const DEFAULT_SLICES = [
-  { id: 1, label: "💥 Blast", value: 0, type: "BLAST", color: "#DC2626", probability: 25 },
-  { id: 2, label: "৳50 Cash", value: 50, type: "CASH", color: "#10B981", probability: 35 },
-  { id: 3, label: "🔄 Respin", value: 1, type: "RESPIN", color: "#06B6D4", probability: 15 },
-  { id: 4, label: "৳100 Cash", value: 100, type: "CASH", color: "#3B82F6", probability: 15 },
-  { id: 5, label: "💥 Blast", value: 0, type: "BLAST", color: "#EF4444", probability: 12 },
-  { id: 6, label: "20 Free Spins", value: 20, type: "FREE_SPINS", color: "#8B5CF6", probability: 8 },
-  { id: 7, label: "👑 ৳500 JACKPOT", value: 500, type: "CASH", color: "#EAB308", probability: 0.001 },
-  { id: 8, label: "🔄 Respin", value: 1, type: "RESPIN", color: "#EC4899", probability: 10 },
+  { id: 1, label: "💥 Blast", value: 0, type: "BLAST", color: "#DC2626", probability: 35 },
+  { id: 2, label: "৳10 Cash", value: 10, type: "CASH", color: "#10B981", probability: 12 },
+  { id: 3, label: "🔄 Respin", value: 1, type: "RESPIN", color: "#06B6D4", probability: 25 },
+  { id: 4, label: "৳20 Cash", value: 20, type: "CASH", color: "#3B82F6", probability: 8 },
+  { id: 5, label: "💥 Blast", value: 0, type: "BLAST", color: "#EF4444", probability: 30 },
+  { id: 6, label: "৳50 Cash", value: 50, type: "CASH", color: "#8B5CF6", probability: 5 },
+  { id: 7, label: "👑 ৳10,000 JACKPOT", value: 10000, type: "CASH", color: "#EAB308", probability: 0.001 },
+  { id: 8, label: "🔄 Respin", value: 1, type: "RESPIN", color: "#EC4899", probability: 25 },
 ];
 
 export async function GET() {
