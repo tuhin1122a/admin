@@ -20,82 +20,105 @@ export const GET = async (
     }
 
     if (user.isBanned && user.wallet) {
-      (user.wallet as any).balance = 0;
+      (user.wallet as any).balance = 0 as any;
     }
 
-    // Deposits and Withdraws for this user
-    const totalDeposits =
-      (
-        await db.deposit.aggregate({
-          where: {
-            userId: user.id,
-            status: "APPROVED",
-          },
-          _sum: {
-            amount: true,
-          },
-        })
-      )._sum.amount || 0;
+    // 1. Deposits and Withdraws aggregates (safely guarded)
+    const depositAgg = await db.deposit
+      .aggregate({
+        where: {
+          userId: user.id,
+          status: "APPROVED",
+        },
+        _sum: {
+          amount: true,
+        },
+      })
+      .catch((err) => {
+        console.error("Deposit aggregate error:", err?.message);
+        return { _sum: { amount: null } };
+      });
+    const totalDeposits = Number(depositAgg._sum.amount ?? 0);
 
-    const totalWithdraws =
-      (
-        await db.withdraw.aggregate({
-          where: {
-            userId: user.id,
-            status: "APPROVED",
-          },
-          _sum: {
-            amount: true,
-          },
-        })
-      )._sum.amount || 0;
+    const withdrawAgg = await db.withdraw
+      .aggregate({
+        where: {
+          userId: user.id,
+          status: "APPROVED",
+        },
+        _sum: {
+          amount: true,
+        },
+      })
+      .catch((err) => {
+        console.error("Withdraw aggregate error:", err?.message);
+        return { _sum: { amount: null } };
+      });
+    const totalWithdraws = Number(withdrawAgg._sum.amount ?? 0);
 
-    const lastDeposits =
-      (
-        await db.deposit.findFirst({
-          where: { userId: user.id, status: "APPROVED" },
-          select: { amount: true },
-          orderBy: { createdAt: "desc" },
-        })
-      )?.amount || 0;
+    // 2. Last deposit & withdraw
+    const lastDepositRow = await db.deposit
+      .findFirst({
+        where: { userId: user.id, status: "APPROVED" },
+        select: { amount: true },
+        orderBy: { createdAt: "desc" },
+      })
+      .catch(() => null);
+    const lastDeposits = Number(lastDepositRow?.amount ?? 0);
 
-    const lastWithdraws =
-      (
-        await db.withdraw.findFirst({
-          where: { userId: user.id, status: "APPROVED" },
-          select: { amount: true },
-          orderBy: { createdAt: "desc" },
-        })
-      )?.amount || 0;
+    const lastWithdrawRow = await db.withdraw
+      .findFirst({
+        where: { userId: user.id, status: "APPROVED" },
+        select: { amount: true },
+        orderBy: { createdAt: "desc" },
+      })
+      .catch(() => null);
+    const lastWithdraws = Number(lastWithdrawRow?.amount ?? 0);
 
+    // 3. Recent 10 deposits and withdraws
     const [deposits, withdraws] = await Promise.all([
-      db.deposit.findMany({
-        where: { userId: user.id },
-        orderBy: { createdAt: "desc" },
-        take: 10,
-      }),
-      db.withdraw.findMany({
-        where: { userId: user.id },
-        orderBy: { createdAt: "desc" },
-        take: 10,
-      }),
+      db.deposit
+        .findMany({
+          where: { userId: user.id },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        })
+        .catch(() => []),
+      db.withdraw
+        .findMany({
+          where: { userId: user.id },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        })
+        .catch(() => []),
     ]);
-    const taggedDeposits = deposits.map((d) => ({ ...d, type: "deposit" }));
-    const taggedWithdraws = withdraws.map((w) => ({ ...w, type: "withdraw" }));
+
+    const taggedDeposits = (deposits || []).map((d) => ({
+      ...d,
+      amount: Number(d.amount ?? 0),
+      type: "deposit",
+    }));
+    const taggedWithdraws = (withdraws || []).map((w) => ({
+      ...w,
+      amount: Number(w.amount ?? 0),
+      type: "withdraw",
+    }));
     const allTransactions = [...taggedDeposits, ...taggedWithdraws].sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
     const latestTransactions = allTransactions.slice(0, 10);
 
-    const approvedDepositsCount = await db.deposit.count({
-      where: {
-        userId: user.id,
-        status: "APPROVED",
-      },
-    });
+    const approvedDepositsCount = await db.deposit
+      .count({
+        where: {
+          userId: user.id,
+          status: "APPROVED",
+        },
+      })
+      .catch(() => 0);
 
-    // Real Betting Statistics from database
+    // 4. Real Betting Statistics from database
     const totalBet = Number(user.bettingRecord?.totalBet ?? 0);
     const totalWin = Number(user.bettingRecord?.totalWin ?? 0);
     const totalLoss = Math.max(0, totalBet - totalWin);
@@ -103,7 +126,7 @@ export const GET = async (
       totalBet > 0 ? Number(((totalWin / totalBet) * 100).toFixed(2)) : 0;
     const netGamingResult = totalWin - totalBet;
 
-    // Full Bonus Tracking: Daily Bonus, Referral Bonus, Spin Bonus
+    // 5. Full Bonus Tracking: Daily Bonus, Referral Bonus, Spin Bonus
     const [claimedSignin, claimedInvites, spinAgg] = await Promise.all([
       db.claimedSigninReward
         .findMany({
@@ -126,15 +149,15 @@ export const GET = async (
         .catch(() => ({ _sum: { prizeValue: 0 }, _count: { id: 0 } })),
     ]);
 
-    const totalDailyBonus = claimedSignin.reduce(
-      (sum, r: any) => sum + Number(r.reward?.prize ?? 0),
+    const totalDailyBonus = (claimedSignin || []).reduce(
+      (sum: number, r: any) => sum + Number(r.reward?.prize ?? 0),
       0
     );
-    const totalReferralBonus = claimedInvites.reduce(
-      (sum, r: any) => sum + Number(r.reward?.prize ?? 0),
+    const totalReferralBonus = (claimedInvites || []).reduce(
+      (sum: number, r: any) => sum + Number(r.reward?.prize ?? 0),
       0
     );
-    const totalSpinBonus = Number(spinAgg._sum?.prizeValue ?? 0);
+    const totalSpinBonus = Number((spinAgg as any)?._sum?.prizeValue ?? 0);
     const totalBonuses =
       totalDailyBonus + totalReferralBonus + totalSpinBonus;
 
@@ -144,28 +167,28 @@ export const GET = async (
 
     const bonusBreakdown = {
       dailyBonus: totalDailyBonus,
-      dailyBonusCount: claimedSignin.length,
+      dailyBonusCount: (claimedSignin || []).length,
       referralBonus: totalReferralBonus,
-      referralBonusCount: claimedInvites.length,
+      referralBonusCount: (claimedInvites || []).length,
       spinBonus: totalSpinBonus,
-      spinBonusCount: spinAgg._count?.id ?? 0,
+      spinBonusCount: (spinAgg as any)?._count?.id ?? 0,
       totalBonuses,
     };
 
     const balanceAudit = {
       currentBalance: currentWalletBalance,
-      totalDeposits: Number(totalDeposits),
-      totalWithdraws: Number(totalWithdraws),
+      totalDeposits,
+      totalWithdraws,
       totalBonuses,
       totalBet,
       totalWin,
       totalLoss,
       netGamingResult,
-      estimatedInflow: Number(totalDeposits) + totalBonuses + totalWin,
-      estimatedOutflow: Number(totalWithdraws) + totalBet,
+      estimatedInflow: totalDeposits + totalBonuses + totalWin,
+      estimatedOutflow: totalWithdraws + totalBet,
     };
 
-    // Load database BetHistory for this user (plus fallback to any local file logs not yet in DB)
+    // 6. Load database BetHistory for this user
     const dbBets = await db.betHistory
       .findMany({
         where: { userId: user.id },
@@ -177,7 +200,7 @@ export const GET = async (
     const seenSerials = new Set<string>();
     const betHistory: Array<Record<string, unknown>> = [];
 
-    for (const row of dbBets) {
+    for (const row of dbBets || []) {
       seenSerials.add(row.serialNumber);
       const bAmt = Number(row.betAmount ?? 0);
       const wAmt = Number(row.winAmount ?? 0);
@@ -206,9 +229,16 @@ export const GET = async (
       });
     }
 
+    // 7. SoftAPI recent callback logs (safely wrapped)
+    let allLogs: any[] = [];
+    try {
+      allLogs = getRecentCallbackLogs();
+    } catch {
+      allLogs = [];
+    }
+
     const numericUserId = toNumericUserId(user.playerId || user.id);
-    const allLogs = getRecentCallbackLogs();
-    const userLogs = allLogs.filter((l) => {
+    const userLogs = (allLogs || []).filter((l) => {
       if (seenSerials.has(l.serial_number)) return false;
       const acc = String(l.member_account).trim();
       return (
@@ -242,38 +272,46 @@ export const GET = async (
       });
     }
 
-    // Fetch recent GameSessions (Entry vs Exit Balance tracking)
-    const rawSessions = await db.gameSession.findMany({
-      where: { userId: id },
-      orderBy: { startedAt: "desc" },
-      take: 50,
-    });
+    // 8. Fetch GameSessions (Safely guarded against missing table on VPS!)
+    let rawSessions: any[] = [];
+    try {
+      if ((db as any).gameSession) {
+        rawSessions = await (db as any).gameSession.findMany({
+          where: { userId: id },
+          orderBy: { startedAt: "desc" },
+          take: 50,
+        });
+      }
+    } catch (sessionErr: any) {
+      console.warn("GameSession table query skipped:", sessionErr?.message);
+      rawSessions = [];
+    }
 
-    const gameSessions = rawSessions.map((s) => ({
+    const gameSessions = (rawSessions || []).map((s: any) => ({
       id: s.id,
       userId: s.userId,
       gameUid: s.gameUid,
       gameName: s.gameName,
-      provider: s.provider,
-      startBalance: Number(s.startBalance),
-      endBalance: s.endBalance !== null ? Number(s.endBalance) : null,
-      netProfit: s.netProfit !== null ? Number(s.netProfit) : null,
-      totalBet: Number(s.totalBet),
-      totalWin: Number(s.totalWin),
-      roundsCount: s.roundsCount,
-      status: s.status,
-      startedAt: s.startedAt.toISOString(),
-      endedAt: s.endedAt ? s.endedAt.toISOString() : null,
+      provider: s.provider || null,
+      startBalance: Number(s.startBalance ?? 0),
+      endBalance: s.endBalance !== null && s.endBalance !== undefined ? Number(s.endBalance) : null,
+      netProfit: s.netProfit !== null && s.netProfit !== undefined ? Number(s.netProfit) : null,
+      totalBet: Number(s.totalBet ?? 0),
+      totalWin: Number(s.totalWin ?? 0),
+      roundsCount: Number(s.roundsCount ?? 0),
+      status: s.status || "COMPLETED",
+      startedAt: s.startedAt ? new Date(s.startedAt).toISOString() : new Date().toISOString(),
+      endedAt: s.endedAt ? new Date(s.endedAt).toISOString() : null,
     }));
 
     return NextResponse.json({
       success: true,
       user,
       financialOverview: {
-        totalDeposits: Number(totalDeposits),
-        totalWithdraws: Number(totalWithdraws),
-        lastDeposits: Number(lastDeposits),
-        lastWithdraws: Number(lastWithdraws),
+        totalDeposits,
+        totalWithdraws,
+        lastDeposits,
+        lastWithdraws,
         approvedDepositsCount,
       },
       bettingStatistics: {
@@ -288,9 +326,14 @@ export const GET = async (
       latestTransactions,
       betHistory,
     });
-  } catch (error) {
-    console.log(error);
-    return NextResponse.json({ error: INTERNAL_SERVER_ERROR }, { status: 500 });
+  } catch (error: any) {
+    console.error("CRITICAL ERROR in GET /api/users/[id]:", error);
+    return NextResponse.json(
+      {
+        error: error?.message || INTERNAL_SERVER_ERROR,
+      },
+      { status: 500 }
+    );
   }
 };
 
