@@ -30,18 +30,21 @@ const ChartFilter = ({
   }, [filterValue, onSelect]);
 
   return (
-    <div className="py-5 flex items-center justify-between">
-      <h3 className="text-xl font-medium text-white">Chart Filter</h3>
+    <div className="py-3 sm:py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div>
+        <h3 className="text-lg sm:text-xl font-medium text-white">Chart Filter</h3>
+        <p className="text-xs text-gray-400">Select timeframe to view deposit &amp; withdrawal trends</p>
+      </div>
 
       <div>
         <Select
           defaultValue={defaultValue && defaultValue}
           onValueChange={(value) => setFilterValue(value)}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px] bg-gray-900 border-gray-800 text-xs sm:text-sm">
             <SelectValue placeholder={"Date"} />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-gray-900 border-gray-800">
             <SelectItem value="7days">Last 7 Days</SelectItem>
             <SelectItem value="lastMonth">Last Month</SelectItem>
             <SelectItem value="year">Year</SelectItem>

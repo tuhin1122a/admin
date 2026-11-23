@@ -1,17 +1,17 @@
 "use client";
 
+import { format, parseISO } from "date-fns";
 import { useState } from "react";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
+    CartesianGrid,
+    Legend,
+    Line,
+    LineChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
 } from "recharts";
-import { format, parseISO } from "date-fns";
 
 const groupByMonth = (data: any[]) => {
   const monthlySummary: Record<
@@ -72,26 +72,28 @@ const DepositWithdrawChart = ({
   };
 
   return (
-    <div className="flex gap-3">
-      <div className="w-full md:w-1/2">
-        <div className="w-full max-w-5xl mx-auto p-2 py-4 bg-white dark:bg-gray-900 rounded-2xl shadow-xl">
-          <h2 className="text-xl font-semibold text-center mb-4 capitalize">
+    <div className="flex flex-col lg:flex-row gap-4 w-full">
+      <div className="w-full lg:w-1/2">
+        <div className="w-full p-3 sm:p-5 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-800">
+          <h2 className="text-base sm:text-lg font-semibold text-center mb-3 capitalize text-white">
             Transaction Overview ({filter})
           </h2>
-          <div className="flex justify-center gap-4 mb-4">
-            <label className="flex items-center gap-1">
+          <div className="flex justify-center gap-4 mb-3 text-xs sm:text-sm">
+            <label className="flex items-center gap-1.5 cursor-pointer text-blue-400 font-medium">
               <input
                 type="checkbox"
                 checked={showDeposits}
                 onChange={() => setShowDeposits(!showDeposits)}
+                className="rounded text-blue-600 focus:ring-blue-500"
               />
               Deposits
             </label>
-            <label className="flex items-center gap-1">
+            <label className="flex items-center gap-1.5 cursor-pointer text-purple-400 font-medium">
               <input
                 type="checkbox"
                 checked={showWithdraws}
                 onChange={() => setShowWithdraws(!showWithdraws)}
+                className="rounded text-purple-600 focus:ring-purple-500"
               />
               Withdraws
             </label>
@@ -122,31 +124,36 @@ const DepositWithdrawChart = ({
               </filter>
             </defs>
           </svg>
-          <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={280}>
             <LineChart
               data={displayData}
-              margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+              margin={{ top: 15, right: 15, left: -10, bottom: 5 }}
             >
-              <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
               <XAxis
                 dataKey="date"
                 tickFormatter={formatLabel}
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11, fill: "#9ca3af" }}
               />
-              <YAxis />
+              <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} />
               <Tooltip
                 labelFormatter={formatLabel}
-                contentStyle={{ background: "#101828" }}
+                contentStyle={{
+                  background: "#111827",
+                  border: "1px solid #374151",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                }}
               />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }} />
               {showDeposits && (
                 <Line
                   type="monotone"
                   dataKey="deposits"
                   stroke="#3B82F6"
                   strokeWidth={2}
-                  dot={{ r: 3 }}
-                  activeDot={{ r: 5 }}
+                  dot={{ r: 2.5 }}
+                  activeDot={{ r: 4 }}
                   filter="url(#shadow-blue)"
                 />
               )}
@@ -156,31 +163,32 @@ const DepositWithdrawChart = ({
                   dataKey="withdraws"
                   stroke="#8B5CF6"
                   strokeWidth={2}
-                  dot={{ r: 3 }}
-                  activeDot={{ r: 5 }}
+                  dot={{ r: 2.5 }}
+                  activeDot={{ r: 4 }}
                   filter="url(#shadow-purple)"
                   style={{ textTransform: "capitalize" }}
                 />
               )}
             </LineChart>
           </ResponsiveContainer>
-          <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-300">
-            Total Deposits: {totalDeposits} | Total Withdraws: {totalWithdraws}
+          <div className="mt-3 text-center text-xs sm:text-sm text-gray-400 font-medium pt-2 border-t border-gray-800">
+            Total Deposits: <span className="text-blue-400 font-bold">৳ {Number(totalDeposits).toLocaleString()}</span> | Total Withdraws: <span className="text-purple-400 font-bold">৳ {Number(totalWithdraws).toLocaleString()}</span>
           </div>
         </div>
       </div>
 
-      <div className="w-full md:w-1/2">
-        <div className="w-full max-w-5xl mx-auto p-2 py-4 bg-white dark:bg-gray-900 rounded-2xl shadow-xl">
-          <h2 className="text-xl font-semibold text-center mb-4 capitalize">
+      <div className="w-full lg:w-1/2">
+        <div className="w-full p-3 sm:p-5 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-800">
+          <h2 className="text-base sm:text-lg font-semibold text-center mb-3 capitalize text-white">
             Revenue Overview ({filter})
           </h2>
-          <div className="flex justify-center gap-4 mb-4">
-            <label className="flex items-center gap-1">
+          <div className="flex justify-center gap-4 mb-3 text-xs sm:text-sm">
+            <label className="flex items-center gap-1.5 cursor-pointer text-emerald-400 font-medium">
               <input
                 type="checkbox"
                 checked={showRevenue}
                 onChange={() => setShowRevenue(!showRevenue)}
+                className="rounded text-emerald-600 focus:ring-emerald-500"
               />
               Revenue
             </label>
@@ -212,39 +220,44 @@ const DepositWithdrawChart = ({
             </defs>
           </svg>
 
-          <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={280}>
             <LineChart
               data={displayData}
-              margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+              margin={{ top: 15, right: 15, left: -10, bottom: 5 }}
             >
-              <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
               <XAxis
                 dataKey="date"
                 tickFormatter={formatLabel}
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 11, fill: "#9ca3af" }}
               />
-              <YAxis />
+              <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} />
               <Tooltip
                 labelFormatter={formatLabel}
-                contentStyle={{ background: "#101828" }}
+                contentStyle={{
+                  background: "#111827",
+                  border: "1px solid #374151",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                }}
               />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }} />
               {showRevenue && (
                 <Line
                   type="monotone"
                   dataKey="revenue"
                   stroke="#10B981"
                   strokeWidth={2}
-                  dot={{ r: 3 }}
-                  activeDot={{ r: 5 }}
+                  dot={{ r: 2.5 }}
+                  activeDot={{ r: 4 }}
                   filter="url(#shadow-blue)"
                 />
               )}
             </LineChart>
           </ResponsiveContainer>
 
-          <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-300">
-            Total Deposits: {totalRevenue}
+          <div className="mt-3 text-center text-xs sm:text-sm text-gray-400 font-medium pt-2 border-t border-gray-800">
+            Net Revenue: <span className="text-emerald-400 font-bold">৳ {Number(totalRevenue).toLocaleString()}</span>
           </div>
         </div>
       </div>

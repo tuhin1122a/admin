@@ -249,26 +249,32 @@ const App: React.FC = () => {
     <>
       {data && !isLoading && (
         <div className="  min-h-screen">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">
-              {data?.subAdminInfo?.isSubAdmin ? "Agency Overview" : "Dashboard Overview"}
-            </h2>
-            <div className="flex items-center space-x-2">
+          {/* Top Title & Filters Bar - fully responsive for mobile & desktop */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 sm:mb-6">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                {data?.subAdminInfo?.isSubAdmin ? "Agency Overview" : "Dashboard Overview"}
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-400 mt-0.5">
+                {data?.subAdminInfo?.isSubAdmin
+                  ? "Real-time player monitoring & agency earnings"
+                  : "Live casino GGR, financial stats & player monitoring"}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className={`w-[240px] justify-start text-left font-normal !rounded-button whitespace-nowrap `}
+                    className="flex-1 sm:flex-initial sm:w-[210px] justify-start text-left font-normal text-xs sm:text-sm !rounded-button whitespace-nowrap bg-gray-900 border-gray-800"
                   >
-                    <i className="fa-regular fa-calendar mr-2"></i>
-                    {date ? (
-                      format(date, "PPP")
-                    ) : (
-                      <span>Select date range</span>
-                    )}
+                    <i className="fa-regular fa-calendar mr-2 shrink-0"></i>
+                    <span className="truncate">
+                      {date ? format(date, "PPP") : "Select date range"}
+                    </span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className={`w-auto p-0 `}>
+                <PopoverContent className="w-auto p-0" align="end">
                   <Calendar
                     mode="single"
                     selected={date}
@@ -279,15 +285,17 @@ const App: React.FC = () => {
               </Popover>
               <Button
                 variant="outline"
-                className={`!rounded-button whitespace-nowrap `}
+                size="sm"
+                className="!rounded-button whitespace-nowrap bg-gray-900 border-gray-800 text-xs sm:text-sm h-9"
               >
-                <i className="fa-solid fa-filter mr-2"></i> Filter
+                <i className="fa-solid fa-filter mr-1.5 sm:mr-2"></i> Filter
               </Button>
               <Button
                 variant="outline"
-                className={`!rounded-button whitespace-nowrap `}
+                size="sm"
+                className="!rounded-button whitespace-nowrap bg-gray-900 border-gray-800 text-xs sm:text-sm h-9"
               >
-                <i className="fa-solid fa-download mr-2"></i> Export
+                <i className="fa-solid fa-download mr-1.5 sm:mr-2"></i> Export
               </Button>
             </div>
           </div>

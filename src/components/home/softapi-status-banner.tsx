@@ -23,24 +23,24 @@ export default function SoftApiStatusBanner() {
   );
 
   return (
-    <div className="mb-6 rounded-xl border border-amber-500/20 bg-gradient-to-r from-gray-900 via-slate-900 to-amber-950/30 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-      <div className="flex items-start md:items-center gap-3.5">
-        <div className="w-11 h-11 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 text-xl font-bold shrink-0">
+    <div className="mb-4 sm:mb-6 rounded-xl border border-amber-500/20 bg-gradient-to-r from-gray-900 via-slate-900 to-amber-950/30 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 shadow-md">
+      <div className="flex items-start gap-3 sm:gap-3.5 min-w-0">
+        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 text-lg sm:text-xl font-bold shrink-0">
           ♠
         </div>
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-bold text-white text-sm md:text-base">
-              Seamless SoftAPI (Slots, Live Casino & Sports)
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <h3 className="font-bold text-white text-xs sm:text-sm md:text-base truncate">
+              Seamless SoftAPI (Slots &amp; Casino)
             </h3>
             <Badge
               variant="outline"
               className={
                 ggrStatus === "OK"
-                  ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10 text-[10px]"
+                  ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10 text-[9px] sm:text-[10px]"
                   : ggrStatus === "LOW"
-                  ? "border-rose-500/40 text-rose-400 bg-rose-500/10 text-[10px]"
-                  : "border-amber-500/40 text-amber-400 bg-amber-500/10 text-[10px]"
+                  ? "border-rose-500/40 text-rose-400 bg-rose-500/10 text-[9px] sm:text-[10px]"
+                  : "border-amber-500/40 text-amber-400 bg-amber-500/10 text-[9px] sm:text-[10px]"
               }
             >
               {isConfigured
@@ -52,15 +52,15 @@ export default function SoftApiStatusBanner() {
                 : "SETUP REQUIRED"}
             </Badge>
           </div>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-[11px] sm:text-xs text-gray-400 mt-1 line-clamp-2">
             {ggrWallet !== null && ggrWallet !== undefined ? (
               <>
                 Live GGR Billing Credit:{" "}
-                <strong className="text-amber-400">
+                <strong className="text-amber-400 font-semibold">
                   ৳ {Number(ggrWallet).toLocaleString()}
                 </strong>{" "}
                 • Settle Callbacks:{" "}
-                <strong className="text-white">
+                <strong className="text-white font-semibold">
                   {info?.recentCallbacks?.length || 0}
                 </strong>
               </>
@@ -72,13 +72,13 @@ export default function SoftApiStatusBanner() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0">
-        <Link href="/casino-api">
+      <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+        <Link href="/casino-api" className="w-full sm:w-auto">
           <Button
             size="sm"
-            className="bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+            className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs cursor-pointer h-8 sm:h-9"
           >
-            Manage Casino API
+            <i className="fa-solid fa-gamepad mr-1.5"></i> Manage Casino API
           </Button>
         </Link>
       </div>

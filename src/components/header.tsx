@@ -14,7 +14,12 @@ import useCurrentUser from "@/hook/useCurrentUser";
 import Link from "next/link";
 import { logout } from "@/action/logout";
 import { toast } from "sonner";
-const Header = () => {
+interface HeaderProps {
+  isMobileMenuOpen?: boolean;
+  onToggleMobileMenu?: () => void;
+}
+
+const Header = ({ isMobileMenuOpen, onToggleMobileMenu }: HeaderProps) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const admin = useCurrentUser();
@@ -31,18 +36,52 @@ const Header = () => {
     }
   };
 
+  const isSuperAdmin = (admin as any)?.role === "ADMIN";
+
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 h-16 bg-primary border-b  border-b-gray-800
-         flex items-center justify-between px-4 lg:px-6`}
+      className={`fixed top-0 left-0 right-0 z-50 h-16 bg-primary border-b border-b-gray-800
+         flex items-center justify-between px-3 sm:px-4 lg:px-6 shadow-md`}
     >
-      <div className="flex items-center">
-        <div className="text-2xl font-bold mr-2 text-blue-500">
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* Mobile Hamburger Drawer Toggle */}
+        {onToggleMobileMenu && (
+          <button
+            type="button"
+            onClick={onToggleMobileMenu}
+            className="lg:hidden p-2 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800 transition-colors focus:outline-none cursor-pointer"
+            aria-label="Toggle navigation menu"
+          >
+            <i
+              className={`fa-solid ${
+                isMobileMenuOpen ? "fa-xmark" : "fa-bars"
+              } text-lg w-5 text-center`}
+            ></i>
+          </button>
+        )}
+
+        <div className="text-xl sm:text-2xl font-bold text-blue-500 shrink-0">
           <i className="fa-solid fa-dice"></i>
         </div>
-        <h1 className="text-xl font-bold"> Admin Panel</h1>
+
+        <div className="flex items-center gap-2 min-w-0">
+          <h1 className="text-base sm:text-lg lg:text-xl font-bold truncate text-white">
+            Admin Panel
+          </h1>
+          {admin && (
+            <span
+              className={`hidden xs:inline-block text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full border ${
+                isSuperAdmin
+                  ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                  : "bg-blue-500/15 text-blue-300 border-blue-500/30"
+              }`}
+            >
+              {isSuperAdmin ? "Master" : "Agent"}
+            </span>
+          )}
+        </div>
       </div>
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-3 sm:space-x-4">
         <div className="relative cursor-pointer">
           <i className="fa-solid fa-bell text-lg"></i>
           {/* <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">

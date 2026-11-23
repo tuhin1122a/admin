@@ -1,9 +1,9 @@
 "use client";
 import { PeriodStats, SubAdminDashboardInfo } from "@/type/dashboard";
-import React, { useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
-import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
+import { useState } from "react";
 import { IoMdArrowUp } from "react-icons/io";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 const Statistics = ({
   totalRevenue,
@@ -32,7 +32,7 @@ const Statistics = ({
   const commRate = subAdminInfo?.commissionRate ?? 0;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-5 sm:mb-6">
       {isAgent && subAdminInfo && (
         <StatisticsCard
           data={{
@@ -197,35 +197,58 @@ const StatisticsCard = ({
   const { allTime, last30Days, last7Days, label, icon, bgColor, textColor } =
     data;
 
+  const formatValue = (val: any) => {
+    if (typeof val === "number") {
+      return Number(val).toLocaleString(undefined, {
+        minimumFractionDigits: Number.isInteger(val) ? 0 : 2,
+        maximumFractionDigits: 2,
+      });
+    }
+    return val ?? 0;
+  };
+
+  const activeValue =
+    time === "all" ? allTime : time === "month" ? last30Days : last7Days;
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium">{label}</CardTitle>
-        <div className={`p-2 rounded-full  ${bgColor}`}>
-          <i className={`fa-solid ${icon} ${textColor}`}></i>
+    <Card className="border-gray-800 bg-gray-900/90 shadow-md hover:border-gray-700 transition-all">
+      <CardHeader className="flex flex-row items-center justify-between p-3.5 sm:p-4 pb-2">
+        <CardTitle className="text-xs sm:text-sm font-medium text-gray-300 truncate max-w-[80%]">
+          {label}
+        </CardTitle>
+        <div className={`p-2 rounded-xl shrink-0 ${bgColor}`}>
+          <i className={`fa-solid ${icon} ${textColor} text-sm sm:text-base`}></i>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">
-          {time == "all" ? allTime : time == "month" ? last30Days : last7Days}
+      <CardContent className="p-3.5 sm:p-4 pt-1">
+        <div className="text-xl sm:text-2xl font-bold tracking-tight text-white truncate">
+          {formatValue(activeValue)}
         </div>
-        <div className="flex items-center mt-1">
-          <span className={"text-green-500 flex items-center"}>
-            <IoMdArrowUp className="w-4 h-4 mr-1" /> 0
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-800/60">
+          <span className="text-emerald-400 text-xs flex items-center font-medium">
+            <IoMdArrowUp className="w-3.5 h-3.5 mr-0.5" /> Live
           </span>
           <Tabs
             defaultValue={time}
-            className="ml-auto"
             onValueChange={(value) => setTime(value)}
           >
-            <TabsList className={`h-7 `}>
-              <TabsTrigger value="7days" className="text-xs px-2 py-0 h-5">
-                7 Days
+            <TabsList className="h-6 sm:h-7 bg-gray-950/80 p-0.5 border border-gray-800">
+              <TabsTrigger
+                value="7days"
+                className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0 h-5"
+              >
+                7D
               </TabsTrigger>
-              <TabsTrigger value="month" className="text-xs px-2 py-0 h-5">
+              <TabsTrigger
+                value="month"
+                className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0 h-5"
+              >
                 Month
               </TabsTrigger>
-              <TabsTrigger value="all" className="text-xs px-2 py-0 h-5">
+              <TabsTrigger
+                value="all"
+                className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0 h-5"
+              >
                 All
               </TabsTrigger>
             </TabsList>
