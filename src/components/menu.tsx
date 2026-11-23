@@ -7,7 +7,7 @@ import { MdDashboard, MdOutlinePayment } from "react-icons/md";
 
 import { BiWorld } from "react-icons/bi";
 import { CiBank } from "react-icons/ci";
-import { FaGear, FaGift, FaMobile } from "react-icons/fa6";
+import { FaGear, FaGift, FaImage, FaMobile } from "react-icons/fa6";
 import { IoMdCode } from "react-icons/io";
 import { IoChatbubbles, IoGameController } from "react-icons/io5";
 import {
@@ -170,6 +170,12 @@ const getNavItems = (isSubAdmin: boolean) => {
           icon: BiWorld,
         },
         {
+          label: "Banners & Sliders",
+          link: "/banners",
+          isActive: false,
+          icon: FaImage,
+        },
+        {
           label: "Promotions & Wheel",
           link: "/promotions",
           isActive: false,
@@ -259,6 +265,10 @@ const Menu = ({ isOpen = false, onClose }: MenuProps) => {
 
   const [toggledMenu, setToggledMenu] = useState("");
   const [navData, setNavData] = useState(() => getNavItems(false));
+
+  useEffect(() => {
+    if (onClose) onClose();
+  }, [pathname]);
 
   useEffect(() => {
     const items = getNavItems(isSubAdmin);

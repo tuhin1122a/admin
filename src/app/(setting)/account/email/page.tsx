@@ -42,7 +42,10 @@ const EmailChangeForm = () => {
       emailChange(data)
         .then((res) => {
           if (res.success) {
-            toast.success("Email changed");
+            toast.success("Email changed successfully. Please log in with your new email.");
+            setTimeout(() => {
+              route.push("/account");
+            }, 1000);
           } else if (res.error) {
             toast.error(res.error);
           }
@@ -56,9 +59,15 @@ const EmailChangeForm = () => {
 
   const handleSendVerificationCode = () => {
     startTr(() => {
-      sentVerificationMail().then((res) => {
+      sentVerificationMail().then((res: any) => {
         if (res.success) {
           setEmailSend(true);
+          if (res.devNote && res.token) {
+            toast.info(`Dev Mode: Code is ${res.token}`);
+            form.setValue("token", res.token);
+          } else {
+            toast.success("Verification code sent to your primary email");
+          }
         } else if (res.error) {
           toast.error(res.error);
         }

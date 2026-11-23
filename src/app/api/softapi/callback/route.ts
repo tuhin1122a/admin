@@ -218,6 +218,68 @@ export async function POST(req: NextRequest) {
               totalWin: { increment: winAmount },
             },
           });
+
+          // 4. Update or rotate GameSession (Entry vs Exit Balance tracking)
+          try {
+            const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+            let activeSession = await tx.gameSession.findFirst({
+              where: {
+                userId: matchedUser.id,
+                gameUid: gameUid || "unknown",
+                status: "ACTIVE",
+                updatedAt: { gte: fifteenMinutesAgo },
+              },
+              orderBy: { createdAt: "desc" },
+            });
+
+            if (activeSession) {
+              const startBal = Number(activeSession.startBalance);
+              const newTotalBet = Number(activeSession.totalBet) + betAmount;
+              const newTotalWin = Number(activeSession.totalWin) + winAmount;
+              const netProfit = Number((creditAmount - startBal).toFixed(2));
+
+              await tx.gameSession.update({
+                where: { id: activeSession.id },
+                data: {
+                  endBalance: creditAmount,
+                  totalBet: newTotalBet,
+                  totalWin: newTotalWin,
+                  netProfit,
+                  roundsCount: { increment: 1 },
+                  endedAt: new Date(),
+                },
+              });
+            } else {
+              // Close any other active sessions
+              await tx.gameSession.updateMany({
+                where: { userId: matchedUser.id, status: "ACTIVE" },
+                data: { status: "COMPLETED", endedAt: new Date() },
+              });
+
+              // Initial start balance prior to this round
+              const calculatedStartBal = Math.max(0, Number((creditAmount - winAmount + betAmount).toFixed(2)));
+              const netProfit = Number((creditAmount - calculatedStartBal).toFixed(2));
+
+              await tx.gameSession.create({
+                data: {
+                  userId: matchedUser.id,
+                  gameUid: gameUid || "unknown",
+                  gameName: gameName || `Game #${gameUid || "unknown"}`,
+                  startBalance: calculatedStartBal,
+                  endBalance: creditAmount,
+                  netProfit,
+                  totalBet: betAmount,
+                  totalWin: winAmount,
+                  roundsCount: 1,
+                  status: "ACTIVE",
+                  startedAt: new Date(),
+                  endedAt: new Date(),
+                },
+              });
+            }
+          } catch (sessionErr) {
+            console.error("GameSession update in callback error:", sessionErr);
+          }
         },
         {
           maxWait: 5000,

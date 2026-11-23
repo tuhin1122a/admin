@@ -37,7 +37,11 @@ const PasswordChangeForm = () => {
       passwordChange(data)
         .then((res) => {
           if (res.success) {
-            toast.success("Password changed");
+            toast.success("Password changed successfully");
+            form.reset();
+            setTimeout(() => {
+              route.push("/account");
+            }, 1000);
           } else if (res.error) {
             toast.error(res.error);
           }

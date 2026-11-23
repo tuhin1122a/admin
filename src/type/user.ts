@@ -1,3 +1,5 @@
+
+
 import { Prisma } from "@prisma/client";
 
 export interface UsersFetchInput {
@@ -27,6 +29,12 @@ export interface UserTableItem {
     totalDeposit: number;
     totalWithdraw: number;
     netProfit: number;
+  };
+  bonuses?: {
+    dailyBonus: number;
+    referralBonus: number;
+    spinBonus: number;
+    totalBonuses: number;
   };
   gameStatus: {
     isPlaying: boolean;
@@ -62,6 +70,46 @@ export interface BetHistoryItem {
   createdAt: string;
 }
 
+export interface BonusBreakdown {
+  dailyBonus: number;
+  dailyBonusCount: number;
+  referralBonus: number;
+  referralBonusCount: number;
+  spinBonus: number;
+  spinBonusCount: number;
+  totalBonuses: number;
+}
+
+export interface BalanceAudit {
+  currentBalance: number;
+  totalDeposits: number;
+  totalWithdraws: number;
+  totalBonuses: number;
+  totalBet: number;
+  totalWin: number;
+  totalLoss: number;
+  netGamingResult: number;
+  estimatedInflow: number;
+  estimatedOutflow: number;
+}
+
+export interface GameSessionItem {
+  id: string;
+  userId: string;
+  gameUid: string;
+  gameName: string;
+  provider?: string | null;
+  startBalance: number;
+  endBalance: number | null;
+  netProfit: number | null;
+  totalBet: number;
+  totalWin: number;
+  roundsCount: number;
+  status: "ACTIVE" | "COMPLETED" | string;
+  startedAt: string;
+  endedAt?: string | null;
+}
+
 export interface FetchUserOutput {
   success: boolean;
   user: Prisma.UserGetPayload<{ include: { wallet: true } }>;
@@ -78,6 +126,9 @@ export interface FetchUserOutput {
     totalLosss: number;
     winRate: number;
   };
+  bonusBreakdown?: BonusBreakdown;
+  balanceAudit?: BalanceAudit;
+  gameSessions?: GameSessionItem[];
   latestTransactions: any[];
   betHistory?: BetHistoryItem[];
 }

@@ -35,8 +35,13 @@ export const nameChange = async (data: NameChangeSchema) => {
 export const passwordChange = async (data: PasswordChangeSchema) => {
   try {
     const { currentPassword, newPassword } = data;
-    const admin = await findAdmin();
-    if (!admin) return { error: "Authentication failed" };
+    const sessionUser = await findCurrentUser();
+    if (!sessionUser?.id) return { error: "Authentication failed. Please log in." };
+
+    const admin = await db.admin.findUnique({
+      where: { id: sessionUser.id },
+    });
+    if (!admin) return { error: "Admin account not found" };
 
     const isPasswordMatch = await bcrypt.compare(
       currentPassword,
@@ -65,19 +70,23 @@ export const passwordChange = async (data: PasswordChangeSchema) => {
 export const sentVerificationMail = async () => {
   try {
     const admin = await findCurrentUser();
-    if (!admin) return { error: "Authentication failed" };
+    if (!admin?.id || !admin?.email) return { error: "Authentication failed. Please log in." };
 
     const token = generateOTP(6);
 
     const tokenHasCreated = await createAdminVerificationToken(token);
 
     if (!tokenHasCreated) {
-      throw Error;
+      return { error: "Failed to generate verification token" };
     }
 
-    await sendAdminVerificationTokenMail(admin.email, token);
+    const sent = await sendAdminVerificationTokenMail(admin.email, token);
 
-    return { success: true };
+    return {
+      success: true,
+      devNote: !sent,
+      token: process.env.NODE_ENV !== "production" || !sent ? token : undefined,
+    };
   } catch {
     return { error: INTERNAL_SERVER_ERROR };
   }
@@ -88,22 +97,32 @@ export const emailChange = async (data: EmailChangeSchema) => {
     const { newEmail, token } = data;
 
     const admin = await findCurrentUser();
-    if (!admin) return { error: "Authentication failed" };
+    if (!admin?.id) return { error: "Authentication failed. Please log in." };
+
+    const targetEmail = newEmail.trim().toLowerCase();
+
+    // Check if new email is already used by another admin
+    const existingAdmin = await db.admin.findUnique({
+      where: { email: targetEmail },
+    });
+    if (existingAdmin && existingAdmin.id !== admin.id) {
+      return { error: "This email address is already in use by another admin." };
+    }
 
     const existingToken = await db.emailVerificationToken.findFirst({
-      where: { token: token },
+      where: { token: token.trim() },
     });
 
     if (!existingToken) {
-      return { error: "Invalid Try" };
+      return { error: "Invalid verification code" };
     }
 
-    if (token !== existingToken?.token) {
-      return { error: "Wrong token" };
+    if (token.trim() !== existingToken.token) {
+      return { error: "Wrong verification code" };
     }
 
-    if (new Date() > new Date(existingToken!.expire)) {
-      return { error: "Token was Expired" };
+    if (new Date() > new Date(existingToken.expire)) {
+      return { error: "Verification code has expired. Please request a new one." };
     }
 
     await db.emailVerificationToken.delete({
@@ -112,10 +131,11 @@ export const emailChange = async (data: EmailChangeSchema) => {
 
     await db.admin.update({
       where: { id: admin.id },
-      data: { email: newEmail },
+      data: { email: targetEmail },
     });
     return { success: true };
-  } catch {
+  } catch (err: any) {
+    console.error("emailChange error:", err);
     return { error: INTERNAL_SERVER_ERROR };
   }
 };

@@ -14,15 +14,30 @@ export const sendAdminVerificationTokenMail = async (
   email: string,
   token: string
 ) => {
+  // Always log for local testing so admin can see the OTP in terminal
+  console.log(`🔐 [ADMIN OTP VERIFICATION]: ${token} for email: ${email}`);
+
+  const user = process.env.SMTP_USERNAME;
+  const pass = process.env.SMTP_PASSWORD;
+  if (
+    !user ||
+    !pass ||
+    user.includes("your-email@") ||
+    pass.includes("your-gmail-")
+  ) {
+    console.warn("⚠️ SMTP credentials not configured in .env. Skipping email dispatch.");
+    return false;
+  }
+
   const options = {
-    from: process.env.SMTP_USERNAME,
+    from: user,
     to: email,
     html: `<html>
     <body>
       <div style="text-align: center; padding: 20px; font-family: Arial;">
-        <h2>🔐 Admin Panel Login Code</h2>
+        <h2>🔐 Admin Panel Verification Code</h2>
         <p>Your OTP is: <strong style="font-size: 20px; color: #ff5722;">${token}</strong></p>
-        <p>This code is valid for <strong>2 minutes</strong>. Do not share it.</p>
+        <p>This code is valid for <strong>1 hour</strong>. Do not share it.</p>
         <p>If you didn't request this, please ignore this email.</p>
       </div>
     </body>
@@ -36,6 +51,6 @@ export const sendAdminVerificationTokenMail = async (
     return true;
   } catch (error) {
     console.log("EMAIL ERROR ", error);
-    return null;
+    return false;
   }
 };

@@ -4,6 +4,7 @@ import {
   softApiEncrypt,
   toNumericUserId,
 } from "@/lib/softapi";
+import { db } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -73,6 +74,61 @@ export async function POST(req: NextRequest) {
     });
 
     const data = await res.json();
+
+    // If game launch was successful, initialize or rotate GameSession
+    if (data?.code === 0 || data?.url) {
+      try {
+        const strUid = String(user_id);
+        const numUid = toNumericUserId(user_id);
+        const dbUser = await db.user.findFirst({
+          where: {
+            OR: [
+              { playerId: strUid },
+              { id: strUid },
+              { phone: strUid },
+              { gameXAPlayerId: strUid },
+            ],
+          },
+          include: { wallet: true },
+        });
+
+        if (dbUser) {
+          // Close any previous active sessions for this user
+          await db.gameSession.updateMany({
+            where: {
+              userId: dbUser.id,
+              status: "ACTIVE",
+            },
+            data: {
+              status: "COMPLETED",
+              endedAt: new Date(),
+            },
+          });
+
+          // Create brand new GameSession with current entry balance
+          const entryBal = Number(dbUser.wallet?.balance ?? balance ?? 0);
+          await db.gameSession.create({
+            data: {
+              userId: dbUser.id,
+              gameUid: String(game_uid),
+              gameName: body.game_name || `Game #${game_uid}`,
+              provider: body.provider || null,
+              startBalance: entryBal,
+              endBalance: entryBal,
+              netProfit: 0,
+              totalBet: 0,
+              totalWin: 0,
+              roundsCount: 0,
+              status: "ACTIVE",
+              startedAt: new Date(),
+            },
+          });
+        }
+      } catch (sessErr) {
+        console.error("GameSession creation error on launch:", sessErr);
+      }
+    }
+
     return NextResponse.json({
       ...data,
       debug_plain_fields: {

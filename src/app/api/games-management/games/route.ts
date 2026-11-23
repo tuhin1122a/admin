@@ -308,13 +308,20 @@ export async function PATCH(req: NextRequest) {
         brandId,
         name: String(body.name || `Game #${gameUid}`),
         customName: updateData.customName ?? null,
-        img: body.img ? String(body.img) : null,
+        img: updateData.img ? String(updateData.img) : null,
         category: body.category ? String(body.category) : "slots",
         isActive: updateData.isActive ?? true,
         sortOrder: updateData.sortOrder ?? 9999,
       },
       update: updateData,
     });
+
+    if (updateData.img) {
+      await db.hotGame.updateMany({
+        where: { gameUid },
+        data: { img: updateData.img },
+      });
+    }
 
     return NextResponse.json({ success: true, gameSetting: saved });
   } catch (err) {

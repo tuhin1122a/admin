@@ -268,3 +268,56 @@ export async function PUT(req: NextRequest) {
   }
 }
 
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await auth();
+    const currentRole = (session?.user as any)?.role;
+    const currentId = session?.user?.id;
+
+    if (currentRole !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Unauthorized. Super Admin access required." },
+        { status: 403 }
+      );
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "Missing sub-admin ID" }, { status: 400 });
+    }
+
+    if (id === currentId) {
+      return NextResponse.json(
+        { error: "You cannot delete your own account" },
+        { status: 400 }
+      );
+    }
+
+    // Unlink players and remove custom deposit wallets
+    await db.user.updateMany({
+      where: { subAdminId: id },
+      data: { subAdminId: null },
+    });
+
+    await db.depositWallet.deleteMany({
+      where: { subAdminId: id },
+    });
+
+    await db.admin.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Sub-Admin agent deleted successfully",
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error?.message || "Failed to delete sub-admin" },
+      { status: 500 }
+    );
+  }
+}
+

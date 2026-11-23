@@ -1,29 +1,31 @@
 "use client";
-import React, { useState } from "react";
+import CookieLoader from "@/components/loaders/cookie-loader";
+import { TableSkeletonLoader } from "@/components/loaders/table-loader";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import moment from "moment";
-import CookieLoader from "@/components/loaders/cookie-loader";
-import { TableSkeletonLoader } from "@/components/loaders/table-loader";
+import { ManualWithdrawModal } from "@/components/user/ManualWithdrawModal";
+import { UserPasswordModal } from "@/components/user/UserPasswordModal";
 import { useFetchUsersQuery } from "@/lib/features/usersApiSlice";
+import moment from "moment";
 import Link from "next/link";
+import React, { useState } from "react";
 
 const Users: React.FC = () => {
   const [filter, setFilter] = useState({
@@ -33,9 +35,12 @@ const Users: React.FC = () => {
     page: 1,
   });
 
-  const { data, isLoading, isFetching } = useFetchUsersQuery(filter);
+  const { data, isLoading, isFetching, refetch } = useFetchUsersQuery(filter);
   const users = data?.users;
   const totalFound = data?.total;
+
+  const [selectedUserForPassword, setSelectedUserForPassword] = useState<any>(null);
+  const [selectedUserForWithdraw, setSelectedUserForWithdraw] = useState<any>(null);
 
   const handleChangeFilterValues = (name: string, value: any) => {
     setFilter((state) => ({ ...state, [name]: value, page: 1 }));
@@ -121,6 +126,7 @@ const Users: React.FC = () => {
                 <TableHead className="font-semibold text-gray-300">Live Status</TableHead>
                 <TableHead className="font-semibold text-gray-300">Current Balance</TableHead>
                 <TableHead className="font-semibold text-gray-300">Deposits / Withdraws</TableHead>
+                <TableHead className="font-semibold text-gray-300">Bonuses (Daily/Ref/Spin)</TableHead>
                 <TableHead className="font-semibold text-gray-300">Total Bet & Win</TableHead>
                 <TableHead className="font-semibold text-gray-300">Win Rate</TableHead>
                 <TableHead className="font-semibold text-gray-300">Account</TableHead>
@@ -195,6 +201,20 @@ const Users: React.FC = () => {
                       </div>
                     </TableCell>
 
+                    {/* Bonuses (Daily / Refer / Spin) */}
+                    <TableCell>
+                      <div className="flex flex-col text-xs font-mono space-y-0.5">
+                        <span className="text-purple-300 font-semibold">
+                          Total: ৳ {(user.bonuses?.totalBonuses ?? 0).toLocaleString()}
+                        </span>
+                        <div className="text-[10px] text-gray-400 flex flex-col">
+                          <span>Daily: ৳ {(user.bonuses?.dailyBonus ?? 0).toLocaleString()}</span>
+                          <span>Refer: ৳ {(user.bonuses?.referralBonus ?? 0).toLocaleString()}</span>
+                          <span>Spin: ৳ {(user.bonuses?.spinBonus ?? 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+
                     {/* Total Bet & Total Win */}
                     <TableCell>
                       <div className="flex flex-col text-xs font-mono space-y-0.5">
@@ -233,17 +253,36 @@ const Users: React.FC = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-8 px-2.5 text-xs bg-gray-900 border-gray-700 hover:bg-gray-800 text-white cursor-pointer"
+                            className="h-8 px-2 text-xs bg-gray-900 border-gray-700 hover:bg-gray-800 text-white cursor-pointer"
+                            title="View Profile & Stats"
                           >
                             <i className="fas fa-eye mr-1"></i> View
                           </Button>
                         </Link>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Change Login & Withdraw Passwords"
+                          onClick={() => setSelectedUserForPassword(user)}
+                          className="h-8 px-2 text-xs bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 cursor-pointer"
+                        >
+                          <i className="fas fa-key text-[10px]"></i>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Manual Withdraw"
+                          onClick={() => setSelectedUserForWithdraw(user)}
+                          className="h-8 px-2 text-xs bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 font-bold cursor-pointer"
+                        >
+                          -৳
+                        </Button>
                         <Link href={`/recharge`}>
                           <Button
                             variant="ghost"
                             size="sm"
                             title="Recharge / Add Balance"
-                            className="h-8 px-2 text-xs bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30"
+                            className="h-8 px-2 text-xs bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-bold"
                           >
                             +৳
                           </Button>
@@ -255,7 +294,7 @@ const Users: React.FC = () => {
               })}
               {users?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10 text-gray-500">
+                  <TableCell colSpan={9} className="text-center py-10 text-gray-500">
                     No users found matching your search filters.
                   </TableCell>
                 </TableRow>
@@ -275,7 +314,10 @@ const Users: React.FC = () => {
               variant="outline"
               size="sm"
               disabled={users?.length === 0 || filter.page === 1}
-              onClick={() => handleChangeFilterValues("page", filter.page - 1)}
+              onClick={() => {
+                handleChangeFilterValues("page", filter.page - 1);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
               className="border-gray-700 bg-gray-900 text-white cursor-pointer"
             >
               <i className="fas fa-chevron-left mr-1"></i> Previous
@@ -287,7 +329,10 @@ const Users: React.FC = () => {
                 users?.length === 0 ||
                 Math.ceil((totalFound || 0) / filter.limit) <= filter.page
               }
-              onClick={() => handleChangeFilterValues("page", filter.page + 1)}
+              onClick={() => {
+                handleChangeFilterValues("page", filter.page + 1);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
               className="border-gray-700 bg-gray-900 text-white cursor-pointer"
             >
               Next <i className="fas fa-chevron-right ml-1"></i>
@@ -399,6 +444,22 @@ const Users: React.FC = () => {
           <CookieLoader />
         </div>
       )}
+
+      {/* Password Change Modal */}
+      <UserPasswordModal
+        open={Boolean(selectedUserForPassword)}
+        onOpenChange={(open) => !open && setSelectedUserForPassword(null)}
+        user={selectedUserForPassword}
+        onSuccess={() => refetch()}
+      />
+
+      {/* Manual Withdraw Modal */}
+      <ManualWithdrawModal
+        open={Boolean(selectedUserForWithdraw)}
+        onOpenChange={(open) => !open && setSelectedUserForWithdraw(null)}
+        user={selectedUserForWithdraw}
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 };

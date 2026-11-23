@@ -80,6 +80,10 @@ const Deposits: React.FC = () => {
         depositId,
         message: message,
       }).unwrap();
+      if (response?.success) {
+        setIsModalOpen(false);
+        setSelectedDeposit(null);
+      }
       return response.success;
     };
 
@@ -232,7 +236,12 @@ const Deposits: React.FC = () => {
               variant="outline"
               size="sm"
               disabled={deposits?.length == 0 || filter.page == 1}
-              onClick={() => handleChangeFilterValues("page", filter.page - 1)}
+              onClick={() => {
+                setIsModalOpen(false);
+                setSelectedDeposit(null);
+                handleChangeFilterValues("page", filter.page - 1);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
               className="!rounded-button whitespace-nowrap cursor-pointer"
             >
               <i className="fas fa-chevron-left mr-1"></i> Previous
@@ -244,7 +253,12 @@ const Deposits: React.FC = () => {
                 deposits?.length == 0 ||
                 Math.ceil(totalFound! / filter.limit) == filter.page
               }
-              onClick={() => handleChangeFilterValues("page", filter.page + 1)}
+              onClick={() => {
+                setIsModalOpen(false);
+                setSelectedDeposit(null);
+                handleChangeFilterValues("page", filter.page + 1);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
               className="!rounded-button whitespace-nowrap cursor-pointer"
             >
               Next <i className="fas fa-chevron-right ml-1"></i>
@@ -601,31 +615,47 @@ const Deposits: React.FC = () => {
                 {selectedDeposit?.status === "PENDING" ? (
                   <>
                     <Button
+                      variant="outline"
                       disabled={arrovalActionLoading}
-                      variant="destructive"
-                      onClick={() =>
-                        handleArroval(selectedDeposit.id, "reject")
-                      }
-                      className="!rounded-button whitespace-nowrap cursor-pointer"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        setSelectedDeposit(null);
+                      }}
+                      className="!rounded-button whitespace-nowrap cursor-pointer order-last sm:order-first"
                     >
-                      <i className="fas fa-times-circle mr-2"></i>
-                      Reject Deposit
+                      Cancel
                     </Button>
-                    <Button
-                      disabled={arrovalActionLoading}
-                      onClick={() =>
-                        handleArroval(selectedDeposit.id, "approve")
-                      }
-                      className="bg-green-600 hover:bg-green-700 text-white !rounded-button whitespace-nowrap cursor-pointer"
-                    >
-                      <i className="fas fa-check-circle mr-2"></i>
-                      Approve Deposit
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        disabled={arrovalActionLoading}
+                        variant="destructive"
+                        onClick={() =>
+                          handleArroval(selectedDeposit.id, "reject")
+                        }
+                        className="!rounded-button whitespace-nowrap cursor-pointer"
+                      >
+                        <i className="fas fa-times-circle mr-2"></i>
+                        Reject Deposit
+                      </Button>
+                      <Button
+                        disabled={arrovalActionLoading}
+                        onClick={() =>
+                          handleArroval(selectedDeposit.id, "approve")
+                        }
+                        className="bg-green-600 hover:bg-green-700 text-white !rounded-button whitespace-nowrap cursor-pointer"
+                      >
+                        <i className="fas fa-check-circle mr-2"></i>
+                        Approve Deposit
+                      </Button>
+                    </div>
                   </>
                 ) : (
                   <Button
                     variant="outline"
-                    onClick={() => setIsModalOpen(false)}
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      setSelectedDeposit(null);
+                    }}
                     className="ml-auto !rounded-button whitespace-nowrap cursor-pointer"
                   >
                     Close

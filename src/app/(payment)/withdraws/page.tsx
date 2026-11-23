@@ -48,6 +48,7 @@ import { DepositStatus } from "@prisma/client";
 import { TableSkeletonLoader } from "@/components/loaders/table-loader";
 import { toast } from "sonner";
 import { INTERNAL_SERVER_ERROR } from "@/error";
+import { ManualWithdrawModal } from "@/components/user/ManualWithdrawModal";
 
 const Withdraws: React.FC = () => {
   const [filter, setFilter] = useState({
@@ -62,10 +63,12 @@ const Withdraws: React.FC = () => {
     page: 1,
   });
 
-  const { data, isLoading, isFetching } = useFetchWithdrawsQuery(filter);
+  const { data, isLoading, isFetching, refetch } = useFetchWithdrawsQuery(filter);
   const withdraws = data?.data.withdraws;
   const totalFound = data?.data.totalFound;
   const paymentWallets = data?.data.paymentWallets;
+
+  const [isManualWithdrawOpen, setIsManualWithdrawOpen] = useState(false);
 
   const [arrovalAPi, { isLoading: arrovalActionLoading }] =
     useApprovalWithdrawMutation();
@@ -80,6 +83,10 @@ const Withdraws: React.FC = () => {
         withdrawId,
         message: message,
       }).unwrap();
+      if (response?.success) {
+        setIsModalOpen(false);
+        setSelectedWithdraw(null);
+      }
       return response.success;
     };
 
@@ -226,7 +233,12 @@ const Withdraws: React.FC = () => {
               variant="outline"
               size="sm"
               disabled={withdraws?.length == 0 || filter.page == 1}
-              onClick={() => handleChangeFilterValues("page", filter.page - 1)}
+              onClick={() => {
+                setIsModalOpen(false);
+                setSelectedWithdraw(null);
+                handleChangeFilterValues("page", filter.page - 1);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
               className="!rounded-button whitespace-nowrap cursor-pointer"
             >
               <i className="fas fa-chevron-left mr-1"></i> Previous
@@ -238,7 +250,12 @@ const Withdraws: React.FC = () => {
                 withdraws?.length == 0 ||
                 Math.ceil(totalFound! / filter.limit) == filter.page
               }
-              onClick={() => handleChangeFilterValues("page", filter.page + 1)}
+              onClick={() => {
+                setIsModalOpen(false);
+                setSelectedWithdraw(null);
+                handleChangeFilterValues("page", filter.page + 1);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
               className="!rounded-button whitespace-nowrap cursor-pointer"
             >
               Next <i className="fas fa-chevron-right ml-1"></i>
@@ -254,6 +271,30 @@ const Withdraws: React.FC = () => {
       {withdraws && !isLoading && (
         <div className="">
           <main className="max-w-7xl mx-auto">
+            {/* Header with Title and Manual Withdraw Button */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 mb-2">
+              <div>
+                <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <span>Withdrawals Management</span>
+                  <Badge className="bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                    {totalFound ?? 0} Total
+                  </Badge>
+                </h1>
+                <p className="text-xs text-gray-400 mt-1">
+                  Manage player cash-out requests, approve or reject withdrawals, or issue manual payouts.
+                </p>
+              </div>
+              <div>
+                <Button
+                  onClick={() => setIsManualWithdrawOpen(true)}
+                  size="sm"
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-semibold cursor-pointer"
+                >
+                  <i className="fas fa-plus-circle mr-1.5"></i> Manual Withdraw
+                </Button>
+              </div>
+            </div>
+
             {/* Tabs and Data */}
             <div className=" shadow rounded-lg overflow-hidden">
               <Tabs defaultValue="recent" onValueChange={setActiveTab}>
@@ -587,31 +628,47 @@ const Withdraws: React.FC = () => {
                 {selectedWithdraw?.status === "PENDING" ? (
                   <>
                     <Button
+                      variant="outline"
                       disabled={arrovalActionLoading}
-                      variant="destructive"
-                      onClick={() =>
-                        handleArroval(selectedWithdraw.id, "reject")
-                      }
-                      className="!rounded-button whitespace-nowrap cursor-pointer"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        setSelectedWithdraw(null);
+                      }}
+                      className="!rounded-button whitespace-nowrap cursor-pointer order-last sm:order-first"
                     >
-                      <i className="fas fa-times-circle mr-2"></i>
-                      Reject Deposit
+                      Cancel
                     </Button>
-                    <Button
-                      disabled={arrovalActionLoading}
-                      onClick={() =>
-                        handleArroval(selectedWithdraw.id, "approve")
-                      }
-                      className="bg-green-600 hover:bg-green-700 text-white !rounded-button whitespace-nowrap cursor-pointer"
-                    >
-                      <i className="fas fa-check-circle mr-2"></i>
-                      Approve Deposit
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        disabled={arrovalActionLoading}
+                        variant="destructive"
+                        onClick={() =>
+                          handleArroval(selectedWithdraw.id, "reject")
+                        }
+                        className="!rounded-button whitespace-nowrap cursor-pointer"
+                      >
+                        <i className="fas fa-times-circle mr-2"></i>
+                        Reject Withdraw
+                      </Button>
+                      <Button
+                        disabled={arrovalActionLoading}
+                        onClick={() =>
+                          handleArroval(selectedWithdraw.id, "approve")
+                        }
+                        className="bg-green-600 hover:bg-green-700 text-white !rounded-button whitespace-nowrap cursor-pointer"
+                      >
+                        <i className="fas fa-check-circle mr-2"></i>
+                        Approve Withdraw
+                      </Button>
+                    </div>
                   </>
                 ) : (
                   <Button
                     variant="outline"
-                    onClick={() => setIsModalOpen(false)}
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      setSelectedWithdraw(null);
+                    }}
                     className="ml-auto !rounded-button whitespace-nowrap cursor-pointer"
                   >
                     Close
@@ -620,6 +677,14 @@ const Withdraws: React.FC = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* Manual Withdraw Modal */}
+          <ManualWithdrawModal
+            open={isManualWithdrawOpen}
+            onOpenChange={setIsManualWithdrawOpen}
+            allowUserSearch={true}
+            onSuccess={() => refetch()}
+          />
         </div>
       )}
 

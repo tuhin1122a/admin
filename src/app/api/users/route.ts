@@ -87,25 +87,48 @@ export async function GET(req: NextRequest) {
 
     const userIds = rawUsers.map((u) => u.id);
 
-    // Aggregate deposits and withdraws in parallel for these users
-    const [depositSums, withdrawSums] = await Promise.all([
-      db.deposit.groupBy({
-        by: ["userId"],
-        where: {
-          userId: { in: userIds },
-          status: "APPROVED",
-        },
-        _sum: { amount: true },
-      }),
-      db.withdraw.groupBy({
-        by: ["userId"],
-        where: {
-          userId: { in: userIds },
-          status: "APPROVED",
-        },
-        _sum: { amount: true },
-      }),
-    ]);
+    // Aggregate deposits, withdraws, and bonuses in parallel for these users
+    const [depositSums, withdrawSums, signinList, inviteList, spinSums] =
+      await Promise.all([
+        db.deposit.groupBy({
+          by: ["userId"],
+          where: {
+            userId: { in: userIds },
+            status: "APPROVED",
+          },
+          _sum: { amount: true },
+        }),
+        db.withdraw.groupBy({
+          by: ["userId"],
+          where: {
+            userId: { in: userIds },
+            status: "APPROVED",
+          },
+          _sum: { amount: true },
+        }),
+        db.claimedSigninReward
+          .findMany({
+            where: { userId: { in: userIds } },
+            select: { userId: true, reward: { select: { prize: true } } },
+          })
+          .catch(() => []),
+        db.claimedInvitationReward
+          .findMany({
+            where: { invitationBonus: { userId: { in: userIds } } },
+            select: {
+              invitationBonus: { select: { userId: true } },
+              reward: { select: { prize: true } },
+            },
+          })
+          .catch(() => []),
+        db.luckyWheelSpin
+          .groupBy({
+            by: ["userId"],
+            where: { userId: { in: userIds } },
+            _sum: { prizeValue: true },
+          })
+          .catch(() => []),
+      ]);
 
     const depositMap = new Map<string, number>();
     for (const d of depositSums) {
@@ -115,6 +138,31 @@ export async function GET(req: NextRequest) {
     const withdrawMap = new Map<string, number>();
     for (const w of withdrawSums) {
       withdrawMap.set(w.userId, Number(w._sum.amount ?? 0));
+    }
+
+    const dailyBonusMap = new Map<string, number>();
+    for (const r of signinList as any[]) {
+      const uId = r.userId;
+      dailyBonusMap.set(
+        uId,
+        (dailyBonusMap.get(uId) ?? 0) + Number(r.reward?.prize ?? 0)
+      );
+    }
+
+    const referralBonusMap = new Map<string, number>();
+    for (const r of inviteList as any[]) {
+      const uId = r.invitationBonus?.userId;
+      if (uId) {
+        referralBonusMap.set(
+          uId,
+          (referralBonusMap.get(uId) ?? 0) + Number(r.reward?.prize ?? 0)
+        );
+      }
+    }
+
+    const spinBonusMap = new Map<string, number>();
+    for (const s of spinSums as any[]) {
+      spinBonusMap.set(s.userId, Number(s._sum?.prizeValue ?? 0));
     }
 
     // Read recent SoftAPI callback logs to check for active in-game sessions
@@ -135,6 +183,11 @@ export async function GET(req: NextRequest) {
       const totalDeposit = depositMap.get(user.id) ?? 0;
       const totalWithdraw = withdrawMap.get(user.id) ?? 0;
       const netProfit = totalDeposit - totalWithdraw;
+
+      const dailyBonus = dailyBonusMap.get(user.id) ?? 0;
+      const referralBonus = referralBonusMap.get(user.id) ?? 0;
+      const spinBonus = spinBonusMap.get(user.id) ?? 0;
+      const totalBonuses = dailyBonus + referralBonus + spinBonus;
 
       // Check if user has active game activity in recent callbacks
       const numUserId = toNumericUserId(user.playerId || user.id);
@@ -181,6 +234,12 @@ export async function GET(req: NextRequest) {
           totalDeposit,
           totalWithdraw,
           netProfit,
+        },
+        bonuses: {
+          dailyBonus,
+          referralBonus,
+          spinBonus,
+          totalBonuses,
         },
         gameStatus: {
           isPlaying,

@@ -101,6 +101,69 @@ export const GET = async (
     const totalLoss = Math.max(0, totalBet - totalWin);
     const winRate =
       totalBet > 0 ? Number(((totalWin / totalBet) * 100).toFixed(2)) : 0;
+    const netGamingResult = totalWin - totalBet;
+
+    // Full Bonus Tracking: Daily Bonus, Referral Bonus, Spin Bonus
+    const [claimedSignin, claimedInvites, spinAgg] = await Promise.all([
+      db.claimedSigninReward
+        .findMany({
+          where: { userId: user.id },
+          include: { reward: true },
+        })
+        .catch(() => []),
+      db.claimedInvitationReward
+        .findMany({
+          where: { invitationBonus: { userId: user.id } },
+          include: { reward: true },
+        })
+        .catch(() => []),
+      db.luckyWheelSpin
+        .aggregate({
+          where: { userId: user.id },
+          _sum: { prizeValue: true },
+          _count: { id: true },
+        })
+        .catch(() => ({ _sum: { prizeValue: 0 }, _count: { id: 0 } })),
+    ]);
+
+    const totalDailyBonus = claimedSignin.reduce(
+      (sum, r: any) => sum + Number(r.reward?.prize ?? 0),
+      0
+    );
+    const totalReferralBonus = claimedInvites.reduce(
+      (sum, r: any) => sum + Number(r.reward?.prize ?? 0),
+      0
+    );
+    const totalSpinBonus = Number(spinAgg._sum?.prizeValue ?? 0);
+    const totalBonuses =
+      totalDailyBonus + totalReferralBonus + totalSpinBonus;
+
+    const currentWalletBalance = user.isBanned
+      ? 0
+      : Number(user.wallet?.balance ?? 0);
+
+    const bonusBreakdown = {
+      dailyBonus: totalDailyBonus,
+      dailyBonusCount: claimedSignin.length,
+      referralBonus: totalReferralBonus,
+      referralBonusCount: claimedInvites.length,
+      spinBonus: totalSpinBonus,
+      spinBonusCount: spinAgg._count?.id ?? 0,
+      totalBonuses,
+    };
+
+    const balanceAudit = {
+      currentBalance: currentWalletBalance,
+      totalDeposits: Number(totalDeposits),
+      totalWithdraws: Number(totalWithdraws),
+      totalBonuses,
+      totalBet,
+      totalWin,
+      totalLoss,
+      netGamingResult,
+      estimatedInflow: Number(totalDeposits) + totalBonuses + totalWin,
+      estimatedOutflow: Number(totalWithdraws) + totalBet,
+    };
 
     // Load database BetHistory for this user (plus fallback to any local file logs not yet in DB)
     const dbBets = await db.betHistory
@@ -179,6 +242,30 @@ export const GET = async (
       });
     }
 
+    // Fetch recent GameSessions (Entry vs Exit Balance tracking)
+    const rawSessions = await db.gameSession.findMany({
+      where: { userId: id },
+      orderBy: { startedAt: "desc" },
+      take: 50,
+    });
+
+    const gameSessions = rawSessions.map((s) => ({
+      id: s.id,
+      userId: s.userId,
+      gameUid: s.gameUid,
+      gameName: s.gameName,
+      provider: s.provider,
+      startBalance: Number(s.startBalance),
+      endBalance: s.endBalance !== null ? Number(s.endBalance) : null,
+      netProfit: s.netProfit !== null ? Number(s.netProfit) : null,
+      totalBet: Number(s.totalBet),
+      totalWin: Number(s.totalWin),
+      roundsCount: s.roundsCount,
+      status: s.status,
+      startedAt: s.startedAt.toISOString(),
+      endedAt: s.endedAt ? s.endedAt.toISOString() : null,
+    }));
+
     return NextResponse.json({
       success: true,
       user,
@@ -195,6 +282,9 @@ export const GET = async (
         totalLosss: totalLoss,
         winRate,
       },
+      bonusBreakdown,
+      balanceAudit,
+      gameSessions,
       latestTransactions,
       betHistory,
     });

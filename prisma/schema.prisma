@@ -67,6 +67,9 @@ model User {
   // Lucky Wheel spins
   luckySpins          LuckyWheelSpin[]    @relation("UserLuckySpins")
 
+  // Game Play Sessions (Entry & Exit Balance tracking)
+  gameSessions        GameSession[]       @relation("UserGameSessions")
+
   @@index([subAdminId])
 }
 
@@ -77,6 +80,29 @@ model BettingRecord {
 
   userId String @unique
   user   User   @relation(fields: [userId], references: [id])
+}
+
+model GameSession {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation("UserGameSessions", fields: [userId], references: [id], onDelete: Cascade)
+  gameUid      String
+  gameName     String
+  provider     String?
+  startBalance Decimal   @db.Decimal(14, 2)
+  endBalance   Decimal?  @db.Decimal(14, 2)
+  netProfit    Decimal?  @db.Decimal(14, 2)
+  totalBet     Decimal   @default(0.00) @db.Decimal(14, 2)
+  totalWin     Decimal   @default(0.00) @db.Decimal(14, 2)
+  roundsCount  Int       @default(0)
+  status       String    @default("ACTIVE") // ACTIVE, COMPLETED
+  startedAt    DateTime  @default(now())
+  endedAt      DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId, gameUid])
+  @@index([userId, startedAt])
 }
 
 model Invitation {

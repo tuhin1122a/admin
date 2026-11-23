@@ -165,6 +165,16 @@ export default function GamesManagementPage() {
   const [updatingGameUid, setUpdatingGameUid] = useState<string | null>(null);
   const [launchingDemoUid, setLaunchingDemoUid] = useState<string | null>(null);
 
+  // Edit Game Modal state
+  const [editingGame, setEditingGame] = useState<CatalogGameRow | null>(null);
+  const [editGameCustomName, setEditGameCustomName] = useState("");
+  const [editGameImg, setEditGameImg] = useState("");
+  const [uploadingGameImg, setUploadingGameImg] = useState(false);
+  const [savingGameEdit, setSavingGameEdit] = useState(false);
+
+  // Bulk Image Download state
+  const [downloadingBulk, setDownloadingBulk] = useState(false);
+
   // Hot Games state
   const [hotGames, setHotGames] = useState<HotGameRow[]>([]);
   const [loadingHot, setLoadingHot] = useState(true);
@@ -526,6 +536,136 @@ export default function GamesManagementPage() {
     );
     setSavingProviderEdit(false);
     if (ok) setEditingProvider(null);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingGameImg(true);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success && data.url) {
+        setEditGameImg(data.url);
+        toast.success("Image uploaded successfully!");
+      } else {
+        toast.error(data.error || "Failed to upload image");
+      }
+    } catch {
+      toast.error("Error uploading file");
+    } finally {
+      setUploadingGameImg(false);
+    }
+  };
+
+  const handleSaveGameEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingGame) return;
+
+    try {
+      setSavingGameEdit(true);
+      const res = await fetch("/api/games-management/games", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gameUid: editingGame.game_uid,
+          brandId: editingGame.brand_id,
+          name: editingGame.name,
+          customName: editGameCustomName.trim() || null,
+          img: editGameImg.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Game "${editingGame.name}" updated!`);
+        // Update local state in games list
+        setGames((prev) =>
+          prev.map((g) =>
+            g.game_uid === editingGame.game_uid
+              ? {
+                  ...g,
+                  name: editGameCustomName.trim() || g.originalName || g.name,
+                  logo: editGameImg.trim() || g.logo,
+                }
+              : g
+          )
+        );
+        // Also update in hot games if present
+        setHotGames((prev) =>
+          prev.map((h) =>
+            h.gameUid === editingGame.game_uid
+              ? {
+                  ...h,
+                  name: editGameCustomName.trim() || h.name,
+                  img: editGameImg.trim() || h.img,
+                }
+              : h
+          )
+        );
+        setEditingGame(null);
+      } else {
+        toast.error(data.error || "Failed to save game edit");
+      }
+    } catch {
+      toast.error("Failed to save changes");
+    } finally {
+      setSavingGameEdit(false);
+    }
+  };
+
+  const handleBulkDownloadImages = async () => {
+    if (games.length === 0) {
+      toast.info("No games loaded to download images");
+      return;
+    }
+    if (
+      !confirm(
+        `Are you sure you want to download and sync images for ${games.length} games to your local server?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setDownloadingBulk(true);
+      toast.info(`Downloading thumbnails for ${games.length} games to your server...`);
+
+      const payload = games.map((g) => ({
+        gameUid: g.game_uid,
+        brandId: g.brand_id,
+        name: g.name,
+        logo: g.logo,
+      }));
+
+      const res = await fetch("/api/games-management/sync-images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ games: payload }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || "Images downloaded successfully!");
+        if (data.updatedGames) {
+          const map = new Map<string, string>(data.updatedGames.map((u: any) => [u.gameUid, u.localUrl]));
+          setGames((prev) =>
+            prev.map((g) => (map.has(g.game_uid) ? { ...g, logo: map.get(g.game_uid)! } : g))
+          );
+        }
+      } else {
+        toast.error(data.error || "Failed to sync images");
+      }
+    } catch {
+      toast.error("Error during image download");
+    } finally {
+      setDownloadingBulk(false);
+    }
   };
 
   const handleToggleGameHot = async (game: CatalogGameRow) => {
@@ -1220,21 +1360,44 @@ export default function GamesManagementPage() {
                     games from the Hot Games section.
                   </CardDescription>
                 </div>
-                <div className="flex items-center space-x-2 bg-gray-800/80 px-3 py-1.5 rounded-md border border-gray-700">
-                  <Switch
-                    id="games-currency-only"
-                    checked={currencyOnly}
-                    onCheckedChange={(checked) => {
-                      setCurrencyOnly(checked);
-                      loadCatalogGames(0, selectedBrandId, gameSearch, checked);
-                    }}
-                  />
-                  <Label
-                    htmlFor="games-currency-only"
-                    className="text-xs text-gray-300 cursor-pointer"
+                <div className="flex items-center gap-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={downloadingBulk || games.length === 0}
+                    onClick={handleBulkDownloadImages}
+                    className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 text-xs h-8 cursor-pointer"
+                    title="Download thumbnails of all displayed games to your local server"
                   >
-                    Supported Currency Only
-                  </Label>
+                    {downloadingBulk ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                        Downloading Images...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-cloud-arrow-down mr-1.5 text-xs"></i>
+                        Download Images to Server
+                      </>
+                    )}
+                  </Button>
+
+                  <div className="flex items-center space-x-2 bg-gray-800/80 px-3 py-1.5 rounded-md border border-gray-700">
+                    <Switch
+                      id="games-currency-only"
+                      checked={currencyOnly}
+                      onCheckedChange={(checked) => {
+                        setCurrencyOnly(checked);
+                        loadCatalogGames(0, selectedBrandId, gameSearch, checked);
+                      }}
+                    />
+                    <Label
+                      htmlFor="games-currency-only"
+                      className="text-xs text-gray-300 cursor-pointer"
+                    >
+                      Supported Currency Only
+                    </Label>
+                  </div>
                 </div>
               </div>
 
@@ -1474,23 +1637,36 @@ export default function GamesManagementPage() {
                               {/* Game Thumbnail + Name */}
                               <TableCell>
                                 <div className="flex items-center gap-3 min-w-[180px]">
-                                  {!imgBroken && thumb ? (
-                                    <img
-                                      src={thumb}
-                                      alt={g.name}
-                                      className="w-11 h-11 rounded-lg object-cover bg-gray-800 shrink-0 border border-gray-700/60"
-                                      onError={() =>
-                                        setBrokenGameImgs((prev) => ({
-                                          ...prev,
-                                          [g.game_uid]: true,
-                                        }))
-                                      }
-                                    />
-                                  ) : (
-                                    <div className="w-11 h-11 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center text-[10px] font-bold text-amber-400 shrink-0">
-                                      #{g.game_uid}
+                                  <div
+                                    className="relative group cursor-pointer shrink-0"
+                                    title="Click to change game image"
+                                    onClick={() => {
+                                      setEditingGame(g);
+                                      setEditGameCustomName(g.name !== g.originalName ? g.name : "");
+                                      setEditGameImg(g.logo || `https://igamingapis.com/img/${g.game_uid}.png`);
+                                    }}
+                                  >
+                                    {!imgBroken && thumb ? (
+                                      <img
+                                        src={thumb}
+                                        alt={g.name}
+                                        className="w-11 h-11 rounded-lg object-cover bg-gray-800 border border-gray-700/60 group-hover:border-amber-400 transition-colors"
+                                        onError={() =>
+                                          setBrokenGameImgs((prev) => ({
+                                            ...prev,
+                                            [g.game_uid]: true,
+                                          }))
+                                        }
+                                      />
+                                    ) : (
+                                      <div className="w-11 h-11 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center text-[10px] font-bold text-amber-400 group-hover:border-amber-400">
+                                        #{g.game_uid}
+                                      </div>
+                                    )}
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 rounded-lg flex items-center justify-center transition-opacity">
+                                      <i className="fas fa-camera text-white text-xs"></i>
                                     </div>
-                                  )}
+                                  </div>
                                   <div className="min-w-0">
                                     <div className="flex items-center gap-1.5">
                                       <span className="font-semibold text-white text-sm truncate max-w-[220px]">
@@ -1571,9 +1747,23 @@ export default function GamesManagementPage() {
                                 </div>
                               </TableCell>
 
-                              {/* Actions: Demo & Add/Remove Hot */}
+                              {/* Actions: Edit, Demo & Add/Remove Hot */}
                               <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-2">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditingGame(g);
+                                      setEditGameCustomName(g.name !== g.originalName ? g.name : "");
+                                      setEditGameImg(g.logo || `https://igamingapis.com/img/${g.game_uid}.png`);
+                                    }}
+                                    className="h-7 px-2 text-xs border-amber-500/40 text-amber-300 hover:bg-amber-500/10 cursor-pointer"
+                                    title="Change image or display name"
+                                  >
+                                    <i className="fas fa-image mr-1 text-[10px]"></i> Edit
+                                  </Button>
+
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -1581,10 +1771,10 @@ export default function GamesManagementPage() {
                                     onClick={() =>
                                       handleDemoLaunch(g.game_uid, g.name)
                                     }
-                                    className="h-7 px-2.5 text-xs border-gray-700"
+                                    className="h-7 px-2 text-xs border-gray-700"
                                   >
                                     {launchingDemoUid === g.game_uid
-                                      ? "Opening..."
+                                      ? "..."
                                       : "Demo"}
                                   </Button>
 
@@ -1599,7 +1789,7 @@ export default function GamesManagementPage() {
                                     }`}
                                   >
                                     <Flame className="w-3.5 h-3.5 mr-1" />
-                                    {g.isHot ? "Hot (Remove)" : "+ Add to Hot"}
+                                    {g.isHot ? "Hot" : "+ Hot"}
                                   </Button>
                                 </div>
                               </TableCell>
@@ -1757,18 +1947,48 @@ export default function GamesManagementPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-3">
-                              {hg.img ? (
-                                <img
-                                  src={hg.img}
-                                  alt={hg.name}
-                                  className="w-11 h-11 rounded-md object-cover bg-gray-800 shrink-0"
-                                  onError={(e) => {
-                                    (
-                                      e.currentTarget as HTMLImageElement
-                                    ).style.display = "none";
-                                  }}
-                                />
-                              ) : null}
+                              <div
+                                className="relative group cursor-pointer shrink-0"
+                                title="Click to edit image"
+                                onClick={() => {
+                                  setEditingGame({
+                                    game_uid: hg.gameUid,
+                                    name: hg.name,
+                                    originalName: hg.name,
+                                    logo: hg.img || `https://igamingapis.com/img/${hg.gameUid}.png`,
+                                    provider: hg.providerDisplayName || hg.providerName || `Brand #${hg.brandId}`,
+                                    brand_id: String(hg.brandId),
+                                    category: hg.category,
+                                    sortOrder: hg.sortOrder,
+                                    isHot: true,
+                                    isGameActive: hg.isActive,
+                                    hasCustomOrder: false,
+                                    providerActive: hg.providerActive !== false,
+                                  });
+                                  setEditGameCustomName(hg.name);
+                                  setEditGameImg(hg.img || `https://igamingapis.com/img/${hg.gameUid}.png`);
+                                }}
+                              >
+                                {hg.img ? (
+                                  <img
+                                    src={hg.img}
+                                    alt={hg.name}
+                                    className="w-11 h-11 rounded-md object-cover bg-gray-800 shrink-0 border border-gray-700/60 group-hover:border-amber-400 transition-colors"
+                                    onError={(e) => {
+                                      (
+                                        e.currentTarget as HTMLImageElement
+                                      ).style.display = "none";
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-11 h-11 rounded-md bg-gray-800 border border-gray-700 flex items-center justify-center text-[10px] font-bold text-amber-400 group-hover:border-amber-400">
+                                    #{hg.gameUid}
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 rounded-md flex items-center justify-center transition-opacity">
+                                  <i className="fas fa-camera text-white text-xs"></i>
+                                </div>
+                              </div>
                               <div>
                                 <div className="font-semibold text-white text-sm">
                                   {hg.name}
@@ -1845,15 +2065,42 @@ export default function GamesManagementPage() {
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="h-8 px-2.5 text-xs"
-                              onClick={() => handleDeleteHotGame(hg)}
-                            >
-                              <Trash2 className="w-3.5 h-3.5 mr-1" />
-                              Remove
-                            </Button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 px-2.5 text-xs border-amber-500/40 text-amber-300 hover:bg-amber-500/10 cursor-pointer"
+                                onClick={() => {
+                                  setEditingGame({
+                                    game_uid: hg.gameUid,
+                                    name: hg.name,
+                                    originalName: hg.name,
+                                    logo: hg.img || `https://igamingapis.com/img/${hg.gameUid}.png`,
+                                    provider: hg.providerDisplayName || hg.providerName || `Brand #${hg.brandId}`,
+                                    brand_id: String(hg.brandId),
+                                    category: hg.category,
+                                    sortOrder: hg.sortOrder,
+                                    isHot: true,
+                                    isGameActive: hg.isActive,
+                                    hasCustomOrder: false,
+                                    providerActive: hg.providerActive !== false,
+                                  });
+                                  setEditGameCustomName(hg.name);
+                                  setEditGameImg(hg.img || `https://igamingapis.com/img/${hg.gameUid}.png`);
+                                }}
+                              >
+                                <i className="fas fa-image mr-1 text-[10px]"></i> Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="h-8 px-2.5 text-xs"
+                                onClick={() => handleDeleteHotGame(hg)}
+                              >
+                                <Trash2 className="w-3.5 h-3.5 mr-1" />
+                                Remove
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1987,6 +2234,116 @@ export default function GamesManagementPage() {
                 className="bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 {savingProviderEdit ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Game Dialog (Image Upload & Link & Custom Name) */}
+      <Dialog
+        open={Boolean(editingGame)}
+        onOpenChange={(open) => !open && setEditingGame(null)}
+      >
+        <DialogContent className="bg-gray-900 border-gray-800 text-white sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <i className="fas fa-image text-amber-400"></i>
+              Edit Game: {editingGame?.name}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-400">
+              UID: <span className="font-mono text-amber-400 font-bold">#{editingGame?.game_uid}</span> | Provider: {editingGame?.provider}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveGameEdit} className="space-y-4 py-2">
+            {/* Preview Current / Selected Image */}
+            <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-gray-950 border border-gray-800">
+              <div className="text-[11px] font-medium text-gray-400 mb-2">Image Preview</div>
+              {editGameImg ? (
+                <img
+                  src={editGameImg}
+                  alt={editingGame?.name}
+                  className="w-24 h-24 rounded-xl object-cover border-2 border-amber-500/40 shadow-lg shadow-black/50"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = `https://igamingapis.com/img/${editingGame?.game_uid}.png`;
+                  }}
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-xs text-gray-400">
+                  No Image
+                </div>
+              )}
+            </div>
+
+            {/* Direct File Upload Option */}
+            <div className="p-3 rounded-lg bg-gray-950/60 border border-gray-800">
+              <Label className="text-xs text-gray-200 font-semibold mb-1.5 flex items-center gap-1.5">
+                <i className="fas fa-upload text-amber-400 text-xs"></i>
+                Option 1: Upload from Device (PC / Phone)
+              </Label>
+              <input
+                type="file"
+                id="game-image-upload"
+                accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/avif"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={uploadingGameImg}
+                onClick={() => document.getElementById("game-image-upload")?.click()}
+                className="w-full h-9 border-dashed border-gray-700 hover:border-amber-500 hover:bg-amber-500/10 text-xs text-gray-300"
+              >
+                <i className={`fas ${uploadingGameImg ? "fa-spinner fa-spin" : "fa-cloud-upload-alt"} mr-2 text-amber-400`}></i>
+                {uploadingGameImg ? "Uploading to Server..." : "Choose File to Upload directly to Server"}
+              </Button>
+              <p className="text-[10px] text-gray-400 mt-1">Saves file into your server storage (/uploads/games/...)</p>
+            </div>
+
+            {/* Custom Image URL Option */}
+            <div>
+              <Label className="text-xs text-gray-200 font-semibold mb-1 flex items-center gap-1.5">
+                <i className="fas fa-link text-blue-400 text-xs"></i>
+                Option 2: Or Paste Image Link / URL
+              </Label>
+              <Input
+                value={editGameImg}
+                onChange={(e) => setEditGameImg(e.target.value)}
+                placeholder="https://... or /uploads/games/..."
+                className="bg-gray-950 border-gray-800 text-xs font-mono"
+              />
+            </div>
+
+            {/* Custom Game Name */}
+            <div>
+              <Label className="text-xs text-gray-200 font-semibold mb-1">
+                Custom Game Display Name (Optional)
+              </Label>
+              <Input
+                value={editGameCustomName}
+                onChange={(e) => setEditGameCustomName(e.target.value)}
+                placeholder={editingGame?.originalName || editingGame?.name}
+                className="bg-gray-950 border-gray-800 text-xs"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingGame(null)}
+                className="border-gray-700 bg-gray-800 text-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={savingGameEdit || uploadingGameImg}
+                className="bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs"
+              >
+                {savingGameEdit ? "Saving..." : "Save Image & Name"}
               </Button>
             </DialogFooter>
           </form>

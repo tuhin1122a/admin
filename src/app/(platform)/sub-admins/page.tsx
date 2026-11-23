@@ -72,6 +72,30 @@ export default function SubAdminsManagementPage() {
   const [editNewPassword, setEditNewPassword] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
+  const handleDeleteSubAdmin = async (id: string, name: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to delete Sub-Admin agent "${name}"? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/sub-admins?id=${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data?.success) {
+        toast.success(data.message || "Sub-Admin deleted");
+        fetchSubAdmins();
+      } else {
+        toast.error(data?.error || "Failed to delete sub-admin");
+      }
+    } catch {
+      toast.error("Failed to delete sub-admin");
+    }
+  };
+
   const fetchSubAdmins = useCallback(async () => {
     try {
       setLoading(true);
@@ -413,6 +437,14 @@ export default function SubAdminsManagementPage() {
                           className="h-8 px-2 text-xs text-gray-300 hover:text-white"
                         >
                           Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteSubAdmin(sub.id, sub.name)}
+                          className="h-8 px-2 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 cursor-pointer"
+                        >
+                          Delete
                         </Button>
                       </div>
                     </TableCell>

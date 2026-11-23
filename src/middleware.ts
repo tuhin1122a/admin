@@ -96,6 +96,7 @@ export default auth((req) => {
     "/casino-api",
     "/games-management",
     "/api/games-management",
+    "/banners",
     "/site",
     "/recharge",
   ];
