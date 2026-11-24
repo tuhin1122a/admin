@@ -7,7 +7,7 @@ import { MdDashboard, MdOutlinePayment } from "react-icons/md";
 
 import { BiWorld } from "react-icons/bi";
 import { CiBank } from "react-icons/ci";
-import { FaGear, FaGift, FaImage, FaMobile } from "react-icons/fa6";
+import { FaCoins, FaGear, FaGift, FaImage, FaMobile } from "react-icons/fa6";
 import { IoMdCode } from "react-icons/io";
 import { IoChatbubbles, IoGameController } from "react-icons/io5";
 import {
@@ -180,6 +180,12 @@ const getNavItems = (isSubAdmin: boolean) => {
           link: "/promotions",
           isActive: false,
           icon: FaGift,
+        },
+        {
+          label: "Bonus & Mission Control",
+          link: "/bonus-missions",
+          isActive: false,
+          icon: FaCoins,
         },
         {
           label: "Sub-Admins (Agents)",

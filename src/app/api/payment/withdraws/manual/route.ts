@@ -62,6 +62,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    if (user.isBanned) {
+      return NextResponse.json(
+        { error: "Cannot process withdrawal: User account is suspended." },
+        { status: 400 }
+      );
+    }
+
+    if (user.canWithdraw === false) {
+      return NextResponse.json(
+        { error: "Withdrawals are currently restricted for this user account by Admin." },
+        { status: 400 }
+      );
+    }
+
     // Sub-Admin check
     if (
       currentRole === "SUBADMIN" &&

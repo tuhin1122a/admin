@@ -55,6 +55,10 @@ export async function GET(req: NextRequest) {
         playerId: true,
         phone: true,
         isBanned: true,
+        canDeposit: true,
+        canWithdraw: true,
+        canPlayGame: true,
+        canClaimBonus: true,
         createdAt: true,
         subAdminId: true,
         subAdmin: {
@@ -219,6 +223,10 @@ export async function GET(req: NextRequest) {
         playerId: user.playerId,
         phone: user.phone,
         isBanned: user.isBanned,
+        canDeposit: user.canDeposit ?? true,
+        canWithdraw: user.canWithdraw ?? true,
+        canPlayGame: user.canPlayGame ?? true,
+        canClaimBonus: user.canClaimBonus ?? true,
         createdAt: user.createdAt,
         wallet: {
           balance,

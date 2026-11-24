@@ -14,6 +14,10 @@ export interface UserTableItem {
   playerId: string;
   phone: string;
   isBanned: boolean;
+  canDeposit?: boolean;
+  canWithdraw?: boolean;
+  canPlayGame?: boolean;
+  canClaimBonus?: boolean;
   createdAt: Date | string;
   wallet: {
     balance: number;

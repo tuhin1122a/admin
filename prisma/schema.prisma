@@ -36,7 +36,11 @@ model User {
   playerId            String                @unique
   gameXAPlayerId      String?               @unique
   facebook            String?               @default("")
-  isBanned            Boolean
+  isBanned            Boolean               @default(false)
+  canDeposit          Boolean               @default(true)
+  canWithdraw         Boolean               @default(true)
+  canPlayGame         Boolean               @default(true)
+  canClaimBonus       Boolean               @default(true)
   referId             String                @unique
   wallet              Wallet?               @relation("UserWallet")
   apayDeposits        APayDeposit[]
@@ -289,6 +293,7 @@ model Deposit {
 
   @@index([userId, createdAt])
   @@index([status])
+  @@index([trxID])
 }
 
 model CardContainer {

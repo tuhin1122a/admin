@@ -48,6 +48,7 @@ import { toast } from "sonner";
 import { addBalanceToUsers } from "@/action/add-balance";
 import { ManualWithdrawModal } from "@/components/user/ManualWithdrawModal";
 import { UserPasswordModal } from "@/components/user/UserPasswordModal";
+import { UserRestrictionsModal } from "@/components/user/UserRestrictionsModal";
 import { FadeLoader } from "react-spinners";
 
 const Details = ({ userId }: { userId: string }) => {
@@ -69,8 +70,9 @@ const Details = ({ userId }: { userId: string }) => {
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionRoundFilter, setSessionRoundFilter] = useState<"ALL" | "WIN" | "LOSS">("ALL");
 
-  // User Passwords & Manual Withdraw Modals
+  // User Passwords, Restrictions & Manual Withdraw Modals
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isRestrictionsModalOpen, setIsRestrictionsModalOpen] = useState(false);
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [isRecharging, setIsRecharging] = useState(false);
   const [rechargeMessage, setRechargeMessage] = useState("");
@@ -339,6 +341,15 @@ const Details = ({ userId }: { userId: string }) => {
                 )}
 
                 {user!.isBanned ? "Unban User" : "Ban User"}
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => setIsRestrictionsModalOpen(true)}
+                className="border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/10 !rounded-button whitespace-nowrap cursor-pointer"
+              >
+                <i className="fas fa-shield-alt mr-2 text-indigo-400"></i>
+                Restrictions
               </Button>
 
               <Button
@@ -1545,6 +1556,16 @@ const Details = ({ userId }: { userId: string }) => {
             }
             onSuccess={() => refetch()}
           />
+
+          {/* User Restrictions Modal */}
+          {user && (
+            <UserRestrictionsModal
+              isOpen={isRestrictionsModalOpen}
+              onClose={() => setIsRestrictionsModalOpen(false)}
+              user={user as any}
+              onUpdated={() => refetch()}
+            />
+          )}
         </div>
       )}
 

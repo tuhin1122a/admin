@@ -38,6 +38,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const strUid = String(user_id);
+    const dbUser = await db.user.findFirst({
+      where: {
+        OR: [
+          { playerId: strUid },
+          { id: strUid },
+          { phone: strUid },
+          { gameXAPlayerId: strUid },
+        ],
+      },
+      include: { wallet: true },
+    });
+
+    if (dbUser) {
+      if (dbUser.isBanned) {
+        return NextResponse.json(
+          { code: 403, msg: "Your account is suspended. Please contact support." },
+          { status: 403 }
+        );
+      }
+      if (dbUser.canPlayGame === false) {
+        return NextResponse.json(
+          { code: 403, msg: "Game play has been restricted for your account by Admin." },
+          { status: 403 }
+        );
+      }
+    }
+
     const numericUserId = toNumericUserId(user_id);
     const plainPayload: Record<string, any> = {
       user_id: numericUserId,

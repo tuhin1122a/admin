@@ -164,8 +164,41 @@ export const PUT = async (req: Request) => {
     }
 
     if (actionType == "approve") {
+      const cleanTrx = deposit.trxID ? deposit.trxID.trim() : "";
+      if (cleanTrx) {
+        // Enforce strict uniqueness: TrxID cannot be approved more than once across all deposits
+        const alreadyApproved = await db.deposit.findFirst({
+          where: {
+            trxID: { equals: cleanTrx, mode: "insensitive" },
+            status: "APPROVED",
+            id: { not: depositId },
+          },
+        });
+        if (alreadyApproved) {
+          return NextResponse.json(
+            {
+              error: `Transaction ID "${cleanTrx}" has already been approved for another deposit. Cannot approve duplicate TrxID!`,
+            },
+            { status: 400 }
+          );
+        }
+      }
+
       const approved = await db.$transaction(
         async (tx) => {
+          if (cleanTrx) {
+            const txDuplicate = await tx.deposit.findFirst({
+              where: {
+                trxID: { equals: cleanTrx, mode: "insensitive" },
+                status: "APPROVED",
+                id: { not: depositId },
+              },
+            });
+            if (txDuplicate) {
+              throw new Error(`Transaction ID "${cleanTrx}" has already been approved.`);
+            }
+          }
+
           // Conditional atomic status transition prevents double-crediting on concurrent clicks
           const statusUpdated = await tx.deposit.updateMany({
             where: { id: depositId, status: "PENDING" },
