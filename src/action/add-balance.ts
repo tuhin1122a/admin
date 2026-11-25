@@ -1,5 +1,6 @@
 "use server";
 
+import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { addBalanceSchema } from "@/schema";
 import { revalidatePath } from "next/cache";
@@ -33,6 +34,10 @@ export async function addBalanceToUsers(
     throw new Error("Amount must be greater than 0");
   }
 
+  const session = await auth();
+  const adminName = session?.user?.name || session?.user?.email || "Admin";
+  const adminId = session?.user?.id || null;
+
   // Start a transaction
   const result = await db.$transaction(async (tx) => {
     // Clear any leftover turnover if user's balance was 0 (or < 1 BDT) before adding new balance
@@ -61,6 +66,9 @@ export async function addBalanceToUsers(
         amount: amountDecimal,
         turnoverAdded: amountDecimal,
         type: "balance_added",
+        note: message || "Manual balance added by Admin",
+        adminId,
+        adminName,
       },
     }));
 

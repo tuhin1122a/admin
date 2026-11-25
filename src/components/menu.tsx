@@ -42,6 +42,12 @@ const getNavItems = (isSubAdmin: boolean) => {
         icon: MdDashboard,
       },
       {
+        label: "My Statement",
+        link: "/my-statement",
+        isActive: false,
+        icon: MdOutlineAccountBalanceWallet,
+      },
+      {
         label: "My Banking Numbers",
         link: "/add-banking",
         isActive: false,
@@ -119,6 +125,12 @@ const getNavItems = (isSubAdmin: boolean) => {
       link: "/",
       isActive: false,
       icon: MdDashboard,
+    },
+    {
+      label: "My Statement",
+      link: "/my-statement",
+      isActive: false,
+      icon: MdOutlineAccountBalanceWallet,
     },
     {
       label: "Payment",
