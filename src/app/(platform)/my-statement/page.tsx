@@ -3,8 +3,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import moment from "moment";
+import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Card,
   CardContent,
@@ -14,6 +16,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -34,13 +41,14 @@ import { ManualWithdrawModal } from "@/components/user/ManualWithdrawModal";
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  CalendarIcon,
   FileSpreadsheet,
   Loader2,
   PlusCircle,
   MinusCircle,
   RefreshCw,
   Search,
-  Wallet,
+  X,
 } from "lucide-react";
 
 interface StatementRecord {
@@ -71,10 +79,14 @@ interface StatementSummary {
   totalManualGiven: number;
   totalDepositGiven: number;
   givenCount: number;
+  manualGivenCount?: number;
+  depositGivenCount?: number;
   totalTaken: number;
   totalManualTaken: number;
   totalWithdrawTaken: number;
   takenCount: number;
+  manualTakenCount?: number;
+  withdrawTakenCount?: number;
   netDifference: number;
 }
 
@@ -95,7 +107,15 @@ export default function MyStatementPage() {
   const [loading, setLoading] = useState(true);
 
   const [filterType, setFilterType] = useState("ALL"); // ALL | GIVEN | TAKEN | MANUAL
-  const [period, setPeriod] = useState("ALL"); // TODAY | 7D | 30D | ALL
+  const [period, setPeriod] = useState("ALL"); // TODAY | YESTERDAY | 7D | 30D | ALL
+  const [dateRange, setDateRange] = useState<{
+    from: Date | undefined;
+    to: Date | undefined;
+  }>({
+    from: undefined,
+    to: undefined,
+  });
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const limit = 15;
@@ -112,6 +132,10 @@ export default function MyStatementPage() {
         page: String(page),
         limit: String(limit),
       });
+      if (dateRange.from) {
+        params.set("from", dateRange.from.toISOString());
+        params.set("to", (dateRange.to || dateRange.from).toISOString());
+      }
       const res = await fetch(`/api/my-statement?${params.toString()}`);
       const data = await res.json();
       if (res.ok && data?.success) {
@@ -136,7 +160,7 @@ export default function MyStatementPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterType, period, search, page, limit]);
+  }, [filterType, period, dateRange, search, page, limit]);
 
   useEffect(() => {
     fetchStatement();
@@ -205,111 +229,93 @@ export default function MyStatementPage() {
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Card 1: Total Given */}
-          <Card className="bg-gray-900/90 border-emerald-500/30">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs text-emerald-300 font-medium flex items-center justify-between">
-                <span>মোট দেওয়া হয়েছে (Total Given to Users)</span>
-                <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+        {/* 4 Summary Cards (2 cards per row on mobile, 4 on desktop) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* Card 1: Total Deposit */}
+          <Card className="bg-gray-900/90 border-emerald-500/30 shadow-md">
+            <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
+              <CardDescription className="text-[11px] sm:text-xs text-emerald-300 font-semibold flex items-center justify-between gap-1">
+                <span className="truncate">Total Deposit</span>
+                <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
               </CardDescription>
-              <CardTitle className="text-2xl font-extrabold text-emerald-400 font-mono">
-                + ৳{" "}
-                {summary.totalGiven.toLocaleString("en-IN", {
+              <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-emerald-400 font-mono truncate">
+                ৳{" "}
+                {summary.totalDepositGiven.toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
                 })}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1 text-xs text-gray-400">
-              <div className="flex justify-between">
-                <span>Manual Recharge Given:</span>
-                <span className="font-mono text-emerald-300 font-semibold">
-                  ৳ {summary.totalManualGiven.toLocaleString("en-IN")}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Approved Deposits:</span>
-                <span className="font-mono text-gray-200">
-                  ৳ {summary.totalDepositGiven.toLocaleString("en-IN")}
-                </span>
-              </div>
-              <div className="text-[11px] text-gray-500 pt-1 border-t border-gray-800">
-                মোট {summary.givenCount} টি ট্রানজ্যাকশনে ইউজারদের দেওয়া হয়েছে
-              </div>
+            <CardContent className="p-3 sm:p-4 pt-0">
+              <p className="text-[10px] sm:text-xs text-gray-400 truncate">
+                {summary.depositGivenCount ?? 0} Approved Deposit
+                {(summary.depositGivenCount ?? 0) !== 1 ? "s" : ""}
+              </p>
             </CardContent>
           </Card>
 
-          {/* Card 2: Total Taken */}
-          <Card className="bg-gray-900/90 border-rose-500/30">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs text-rose-300 font-medium flex items-center justify-between">
-                <span>মোট নেওয়া হয়েছে (Total Taken from Users)</span>
-                <ArrowDownLeft className="w-4 h-4 text-rose-400" />
+          {/* Card 2: Total Withdraw */}
+          <Card className="bg-gray-900/90 border-rose-500/30 shadow-md">
+            <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
+              <CardDescription className="text-[11px] sm:text-xs text-rose-300 font-semibold flex items-center justify-between gap-1">
+                <span className="truncate">Total Withdraw</span>
+                <ArrowDownLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400 shrink-0" />
               </CardDescription>
-              <CardTitle className="text-2xl font-extrabold text-rose-400 font-mono">
-                - ৳{" "}
-                {summary.totalTaken.toLocaleString("en-IN", {
+              <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-rose-400 font-mono truncate">
+                ৳{" "}
+                {summary.totalWithdrawTaken.toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
                 })}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1 text-xs text-gray-400">
-              <div className="flex justify-between">
-                <span>Manual Withdraw Taken:</span>
-                <span className="font-mono text-rose-300 font-semibold">
-                  ৳ {summary.totalManualTaken.toLocaleString("en-IN")}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Approved Withdrawals:</span>
-                <span className="font-mono text-gray-200">
-                  ৳ {summary.totalWithdrawTaken.toLocaleString("en-IN")}
-                </span>
-              </div>
-              <div className="text-[11px] text-gray-500 pt-1 border-t border-gray-800">
-                মোট {summary.takenCount} টি ট্রানজ্যাকশনে ইউজারদের থেকে নেওয়া হয়েছে
-              </div>
+            <CardContent className="p-3 sm:p-4 pt-0">
+              <p className="text-[10px] sm:text-xs text-gray-400 truncate">
+                {summary.withdrawTakenCount ?? 0} Approved Withdraw
+                {(summary.withdrawTakenCount ?? 0) !== 1 ? "s" : ""}
+              </p>
             </CardContent>
           </Card>
 
-          {/* Card 3: Net Statement */}
-          <Card className="bg-gray-900/90 border-blue-500/30">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-xs text-blue-300 font-medium flex items-center justify-between">
-                <span>নেট ব্যালেন্স হিসাব (Given - Taken)</span>
-                <Wallet className="w-4 h-4 text-blue-400" />
+          {/* Card 3: Total Manual Deposit */}
+          <Card className="bg-gray-900/90 border-amber-500/30 shadow-md">
+            <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
+              <CardDescription className="text-[11px] sm:text-xs text-amber-300 font-semibold flex items-center justify-between gap-1">
+                <span className="truncate">Total Manual Deposit</span>
+                <PlusCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
               </CardDescription>
-              <CardTitle
-                className={`text-2xl font-extrabold font-mono ${
-                  summary.netDifference >= 0 ? "text-amber-400" : "text-blue-400"
-                }`}
-              >
-                {summary.netDifference >= 0 ? "+" : ""}৳{" "}
-                {summary.netDifference.toLocaleString("en-IN", {
+              <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-amber-400 font-mono truncate">
+                ৳{" "}
+                {summary.totalManualGiven.toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
                 })}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1 text-xs text-gray-400">
-              <div className="flex justify-between">
-                <span>Manual Given vs Taken:</span>
-                <span className="font-mono text-amber-300 font-semibold">
-                  ৳{" "}
-                  {(
-                    summary.totalManualGiven - summary.totalManualTaken
-                  ).toLocaleString("en-IN")}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Total Records Found:</span>
-                <span className="font-mono text-white font-semibold">
-                  {totalFound}
-                </span>
-              </div>
-              <div className="text-[11px] text-gray-500 pt-1 border-t border-gray-800">
-                সকল দেওয়া ও নেওয়া লেনদেনের পার্থক্য
-              </div>
+            <CardContent className="p-3 sm:p-4 pt-0">
+              <p className="text-[10px] sm:text-xs text-gray-400 truncate">
+                {summary.manualGivenCount ?? 0} Manual Recharge
+                {(summary.manualGivenCount ?? 0) !== 1 ? "s" : ""}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Card 4: Manual Withdraw */}
+          <Card className="bg-gray-900/90 border-purple-500/30 shadow-md">
+            <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
+              <CardDescription className="text-[11px] sm:text-xs text-purple-300 font-semibold flex items-center justify-between gap-1">
+                <span className="truncate">Manual Withdraw</span>
+                <MinusCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400 shrink-0" />
+              </CardDescription>
+              <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-purple-400 font-mono truncate">
+                ৳{" "}
+                {summary.totalManualTaken.toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                })}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-4 pt-0">
+              <p className="text-[10px] sm:text-xs text-gray-400 truncate">
+                {summary.manualTakenCount ?? 0} Manual Deduct
+                {(summary.manualTakenCount ?? 0) !== 1 ? "s" : ""}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -352,15 +358,15 @@ export default function MyStatementPage() {
               </TabsList>
             </Tabs>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
                 <Label className="text-xs text-gray-400">
                   Search User Phone, Player ID, TrxID or Note
                 </Label>
                 <div className="relative mt-1">
                   <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   <Input
-                    placeholder="ফোন নম্বর, প্লেয়ার আইডি বা নোট লিখে খুঁজুন..."
+                    placeholder="ফোন নম্বর, প্লেয়ার আইডি বা নোট..."
                     value={search}
                     onChange={(e) => {
                       setSearch(e.target.value);
@@ -372,11 +378,78 @@ export default function MyStatementPage() {
               </div>
 
               <div>
-                <Label className="text-xs text-gray-400">Time Period (সময়কাল)</Label>
+                <Label className="text-xs text-gray-400">
+                  Date Range Filter (তারিখ অনুযায়ী ফিল্টার)
+                </Label>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <Popover
+                    open={isCalendarOpen}
+                    onOpenChange={setIsCalendarOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full min-w-0 justify-start text-left font-normal bg-gray-950 border-gray-800 text-xs sm:text-sm overflow-hidden cursor-pointer"
+                      >
+                        <CalendarIcon className="w-3.5 h-3.5 mr-2 text-gray-400 shrink-0" />
+                        <span className="truncate">
+                          {dateRange.from ? (
+                            dateRange.to ? (
+                              <>
+                                {format(dateRange.from, "LLL dd, y")} -{" "}
+                                {format(dateRange.to, "LLL dd, y")}
+                              </>
+                            ) : (
+                              format(dateRange.from, "LLL dd, y")
+                            )
+                          ) : (
+                            "Pick a date range"
+                          )}
+                        </span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="range"
+                        selected={dateRange}
+                        onSelect={(range) => {
+                          setDateRange(
+                            (range as {
+                              from: Date | undefined;
+                              to: Date | undefined;
+                            }) || { from: undefined, to: undefined }
+                          );
+                          setPage(1);
+                          if (range?.to) setIsCalendarOpen(false);
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {dateRange.from && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setDateRange({ from: undefined, to: undefined });
+                        setPage(1);
+                      }}
+                      className="px-2 text-gray-400 hover:text-white shrink-0"
+                      title="Clear Date Filter"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs text-gray-400">Quick Time Period (সময়কাল)</Label>
                 <Select
                   value={period}
                   onValueChange={(val) => {
                     setPeriod(val);
+                    setDateRange({ from: undefined, to: undefined });
                     setPage(1);
                   }}
                 >
@@ -386,6 +459,7 @@ export default function MyStatementPage() {
                   <SelectContent className="bg-gray-900 border-gray-800">
                     <SelectItem value="ALL">All Time (সব সময়)</SelectItem>
                     <SelectItem value="TODAY">Today (আজকের হিসাব)</SelectItem>
+                    <SelectItem value="YESTERDAY">Yesterday (গতকাল)</SelectItem>
                     <SelectItem value="7D">Last 7 Days (গত ৭ দিন)</SelectItem>
                     <SelectItem value="30D">Last 30 Days (গত ৩০ দিন)</SelectItem>
                   </SelectContent>

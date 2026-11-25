@@ -49,6 +49,7 @@ import { TableSkeletonLoader } from "@/components/loaders/table-loader";
 import { toast } from "sonner";
 import { INTERNAL_SERVER_ERROR } from "@/error";
 import { ManualWithdrawModal } from "@/components/user/ManualWithdrawModal";
+import { PaymentSummaryCards } from "@/components/payment/PaymentSummaryCards";
 
 const Withdraws: React.FC = () => {
   const [filter, setFilter] = useState({
@@ -150,9 +151,15 @@ const Withdraws: React.FC = () => {
   };
 
   useEffect(() => {
-    if (dateRange.from && dateRange.to) {
-      handleChangeFilterValues("from", dateRange.from);
-      handleChangeFilterValues("to", dateRange.to);
+    if (dateRange.from) {
+      handleChangeFilterValues("from", dateRange.from.toISOString());
+      handleChangeFilterValues(
+        "to",
+        (dateRange.to || dateRange.from).toISOString()
+      );
+    } else {
+      handleChangeFilterValues("from", "");
+      handleChangeFilterValues("to", "");
     }
   }, [dateRange, handleChangeFilterValues]);
 
@@ -300,6 +307,13 @@ const Withdraws: React.FC = () => {
                 </Button>
               </div>
             </div>
+
+            {/* 4 Payment Summary Cards (2 per row on mobile, 4 on desktop) */}
+            <PaymentSummaryCards
+              from={filter.from}
+              to={filter.to}
+              refreshTrigger={withdraws}
+            />
 
             {/* Tabs and Data */}
             <div className=" shadow rounded-lg overflow-hidden">

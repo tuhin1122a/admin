@@ -48,6 +48,7 @@ import { DepositStatus } from "@prisma/client";
 import { TableSkeletonLoader } from "@/components/loaders/table-loader";
 import { toast } from "sonner";
 import { INTERNAL_SERVER_ERROR } from "@/error";
+import { PaymentSummaryCards } from "@/components/payment/PaymentSummaryCards";
 
 const Deposits: React.FC = () => {
   const [filter, setFilter] = useState({
@@ -148,9 +149,15 @@ const Deposits: React.FC = () => {
   };
 
   useEffect(() => {
-    if (dateRange.from && dateRange.to) {
-      handleChangeFilterValues("from", dateRange.from);
-      handleChangeFilterValues("to", dateRange.to);
+    if (dateRange.from) {
+      handleChangeFilterValues("from", dateRange.from.toISOString());
+      handleChangeFilterValues(
+        "to",
+        (dateRange.to || dateRange.from).toISOString()
+      );
+    } else {
+      handleChangeFilterValues("from", "");
+      handleChangeFilterValues("to", "");
     }
   }, [dateRange, handleChangeFilterValues]);
 
@@ -279,6 +286,13 @@ const Deposits: React.FC = () => {
       {deposits && !isLoading && (
         <div className="">
           <main className="max-w-7xl mx-auto">
+            {/* 4 Payment Summary Cards (2 per row on mobile, 4 on desktop) */}
+            <PaymentSummaryCards
+              from={filter.from}
+              to={filter.to}
+              refreshTrigger={deposits}
+            />
+
             {/* Tabs and Data */}
             <div className=" shadow rounded-lg overflow-hidden">
               <Tabs defaultValue="recent" onValueChange={setActiveTab}>

@@ -45,9 +45,20 @@ export async function GET(req: Request) {
   }
 
   if (from || to) {
+    const parsedFrom = from ? new Date(from) : undefined;
+    const parsedTo = to ? new Date(to) : undefined;
+    if (
+      parsedTo &&
+      !isNaN(parsedTo.getTime()) &&
+      parsedTo.getHours() === 0 &&
+      parsedTo.getMinutes() === 0 &&
+      parsedTo.getSeconds() === 0
+    ) {
+      parsedTo.setHours(23, 59, 59, 999);
+    }
     where.createdAt = {
-      ...(from && { gte: new Date(from) }),
-      ...(to && { lte: new Date(to) }),
+      ...(parsedFrom && !isNaN(parsedFrom.getTime()) && { gte: parsedFrom }),
+      ...(parsedTo && !isNaN(parsedTo.getTime()) && { lte: parsedTo }),
     };
   }
 

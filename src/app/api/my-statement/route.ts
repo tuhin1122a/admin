@@ -41,19 +41,64 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const search = (searchParams.get("search") || "").trim().toLowerCase();
     const filterType = (searchParams.get("type") || "ALL").toUpperCase(); // ALL | GIVEN | TAKEN | MANUAL
-    const period = (searchParams.get("period") || "ALL").toUpperCase(); // TODAY | 7D | 30D | ALL
+    const period = (searchParams.get("period") || "ALL").toUpperCase(); // TODAY | YESTERDAY | 7D | 30D | ALL
+    const fromParam = searchParams.get("from") || "";
+    const toParam = searchParams.get("to") || "";
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") || "15", 10)));
 
     let dateFrom: Date | undefined;
+    let dateTo: Date | undefined;
     const now = new Date();
-    if (period === "TODAY") {
-      dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    } else if (period === "7D") {
-      dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    } else if (period === "30D") {
-      dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    if (fromParam) {
+      const parsedFrom = new Date(fromParam);
+      if (!isNaN(parsedFrom.getTime())) {
+        dateFrom = parsedFrom;
+      }
     }
+    if (toParam) {
+      const parsedTo = new Date(toParam);
+      if (!isNaN(parsedTo.getTime())) {
+        if (
+          parsedTo.getHours() === 0 &&
+          parsedTo.getMinutes() === 0 &&
+          parsedTo.getSeconds() === 0
+        ) {
+          parsedTo.setHours(23, 59, 59, 999);
+        }
+        dateTo = parsedTo;
+      }
+    }
+
+    if (!dateFrom && !dateTo) {
+      if (period === "TODAY") {
+        dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (period === "YESTERDAY") {
+        dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        dateTo = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - 1,
+          23,
+          59,
+          59,
+          999
+        );
+      } else if (period === "7D") {
+        dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else if (period === "30D") {
+        dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      }
+    }
+
+    const createdAtFilter =
+      dateFrom || dateTo
+        ? {
+            ...(dateFrom && { gte: dateFrom }),
+            ...(dateTo && { lte: dateTo }),
+          }
+        : undefined;
 
     const userScopeWhere: any =
       currentRole === "SUBADMIN" && currentAdminId
@@ -63,7 +108,7 @@ export async function GET(req: NextRequest) {
     // 1. Fetch manual balance additions & manual withdrawals from Notifications
     const manualNotifications = await db.notification.findMany({
       where: {
-        ...(dateFrom && { createdAt: { gte: dateFrom } }),
+        ...(createdAtFilter && { createdAt: createdAtFilter }),
         ...(Object.keys(userScopeWhere).length > 0 && { user: userScopeWhere }),
         OR: [
           { title: "Balance Added" },
@@ -81,14 +126,14 @@ export async function GET(req: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 500,
+      take: 1000,
     });
 
     // 2. Fetch Approved Deposits (money given to users)
     const approvedDeposits = await db.deposit.findMany({
       where: {
         status: "APPROVED",
-        ...(dateFrom && { createdAt: { gte: dateFrom } }),
+        ...(createdAtFilter && { createdAt: createdAtFilter }),
         ...(Object.keys(userScopeWhere).length > 0 && { user: userScopeWhere }),
       },
       include: {
@@ -103,14 +148,14 @@ export async function GET(req: NextRequest) {
         wallet: true,
       },
       orderBy: { createdAt: "desc" },
-      take: 500,
+      take: 1000,
     });
 
     // 3. Fetch Approved Withdrawals (money taken/withdrawn from users)
     const approvedWithdraws = await db.withdraw.findMany({
       where: {
         status: "APPROVED",
-        ...(dateFrom && { createdAt: { gte: dateFrom } }),
+        ...(createdAtFilter && { createdAt: createdAtFilter }),
         ...(Object.keys(userScopeWhere).length > 0 && { user: userScopeWhere }),
       },
       include: {
@@ -125,7 +170,7 @@ export async function GET(req: NextRequest) {
         card: true,
       },
       orderBy: { createdAt: "desc" },
-      take: 500,
+      take: 1000,
     });
 
     const paymentWallets = await db.paymentWallet.findMany();
@@ -268,23 +313,37 @@ export async function GET(req: NextRequest) {
     let totalManualGiven = 0;
     let totalDepositGiven = 0;
     let givenCount = 0;
+    let manualGivenCount = 0;
+    let depositGivenCount = 0;
 
     let totalTaken = 0;
     let totalManualTaken = 0;
     let totalWithdrawTaken = 0;
     let takenCount = 0;
+    let manualTakenCount = 0;
+    let withdrawTakenCount = 0;
 
     for (const r of records) {
       if (r.direction === "GIVEN") {
         totalGiven += r.amount;
         givenCount++;
-        if (r.category === "MANUAL_ADD") totalManualGiven += r.amount;
-        else totalDepositGiven += r.amount;
+        if (r.category === "MANUAL_ADD") {
+          totalManualGiven += r.amount;
+          manualGivenCount++;
+        } else {
+          totalDepositGiven += r.amount;
+          depositGivenCount++;
+        }
       } else {
         totalTaken += r.amount;
         takenCount++;
-        if (r.category === "MANUAL_WITHDRAW") totalManualTaken += r.amount;
-        else totalWithdrawTaken += r.amount;
+        if (r.category === "MANUAL_WITHDRAW") {
+          totalManualTaken += r.amount;
+          manualTakenCount++;
+        } else {
+          totalWithdrawTaken += r.amount;
+          withdrawTakenCount++;
+        }
       }
     }
 
@@ -318,10 +377,14 @@ export async function GET(req: NextRequest) {
         totalManualGiven: Number(totalManualGiven.toFixed(2)),
         totalDepositGiven: Number(totalDepositGiven.toFixed(2)),
         givenCount,
+        manualGivenCount,
+        depositGivenCount,
         totalTaken: Number(totalTaken.toFixed(2)),
         totalManualTaken: Number(totalManualTaken.toFixed(2)),
         totalWithdrawTaken: Number(totalWithdrawTaken.toFixed(2)),
         takenCount,
+        manualTakenCount,
+        withdrawTakenCount,
         netDifference: Number((totalGiven - totalTaken).toFixed(2)),
       },
       records: paginated,
