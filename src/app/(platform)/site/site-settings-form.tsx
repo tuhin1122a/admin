@@ -489,12 +489,11 @@ export function SiteSettingsForm() {
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {sliderPreviews.map((preview, index) => (
                       <div key={index} className="relative">
-                        <Image
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
                           src={preview}
                           alt={`Slider preview ${index + 1}`}
-                          width={300}
-                          height={128}
-                          className="w-full h-32 object-cover rounded-md"
+                          className="w-full h-32 object-cover rounded-md border border-gray-800 bg-gray-950"
                         />
                       </div>
                     ))}
@@ -530,12 +529,11 @@ export function SiteSettingsForm() {
               {promotionsLogoPreview && (
                 <div className="mt-4">
                   <h4 className="text-sm font-medium mb-2">Logo Preview:</h4>
-                  <Image
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
                     src={promotionsLogoPreview}
                     alt="Promotions logo preview"
-                    width={128}
-                    height={128}
-                    className="w-32 h-32 object-contain rounded-md"
+                    className="w-32 h-32 object-contain rounded-md border border-gray-800 bg-gray-950"
                   />
                 </div>
               )}

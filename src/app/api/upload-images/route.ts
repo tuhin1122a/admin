@@ -31,27 +31,38 @@ export async function POST(request: Request) {
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         
-        // Upload to Cloudinary
-        const result = await new Promise((resolve, reject) => {
-          cloudinary.v2.uploader
-            .upload_stream(
-              {
-                folder: "slider_images",
-                use_filename: true,
-                unique_filename: false,
-              },
-              (error, result) => {
-                if (error) {
-                  reject(error);
-                } else {
-                  resolve(result);
+        // Upload to Cloudinary (with unique filename so multiple files never overwrite each other)
+        let uploadedUrl = "";
+        try {
+          const result = await new Promise((resolve, reject) => {
+            cloudinary.v2.uploader
+              .upload_stream(
+                {
+                  folder: "slider_images",
+                  resource_type: "image",
+                  unique_filename: true,
+                },
+                (error, result) => {
+                  if (error) {
+                    reject(error);
+                  } else {
+                    resolve(result);
+                  }
                 }
-              }
-            )
-            .end(buffer);
-        });
-        
-        sliderImages.push((result as any).secure_url);
+              )
+              .end(buffer);
+          });
+          uploadedUrl = (result as any)?.secure_url || "";
+        } catch (err) {
+          console.warn("[upload-images] Cloudinary failed, falling back to data URL:", err);
+        }
+
+        if (!uploadedUrl) {
+          const mime = file.type && file.type.startsWith("image/") ? file.type : "image/png";
+          uploadedUrl = `data:${mime};base64,${buffer.toString("base64")}`;
+        }
+
+        sliderImages.push(uploadedUrl);
       }
     }
     

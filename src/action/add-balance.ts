@@ -35,19 +35,31 @@ export async function addBalanceToUsers(
 
   // Start a transaction
   const result = await db.$transaction(async (tx) => {
-    // Update all wallets
+    // Clear any leftover turnover if user's balance was 0 (or < 1 BDT) before adding new balance
+    await tx.wallet.updateMany({
+      where: { userId: { in: userIds }, balance: { lt: 1 } },
+      data: { turnOver: 0 },
+    });
+
+    // Update all wallets with balance + 1x turnover requirement
     await tx.wallet.updateMany({
       where: { userId: { in: userIds } },
-      data: { balance: { increment: amountDecimal } },
+      data: {
+        balance: { increment: amountDecimal },
+        turnOver: { increment: amountDecimal },
+      },
     });
 
     // Create notifications
     const notifications = userIds.map((userId) => ({
       title: "Balance Added",
-      description: message || `${amount} BDT has been added to your wallet`,
+      description:
+        message ||
+        `৳${amountDecimal.toFixed(2)} has been added to your wallet (1x Turnover: ৳${amountDecimal.toFixed(2)}).`,
       userId,
       metadata: {
         amount: amountDecimal,
+        turnoverAdded: amountDecimal,
         type: "balance_added",
       },
     }));

@@ -132,11 +132,25 @@ export async function POST(req: NextRequest) {
 
     // Perform database transaction
     const result = await db.$transaction(async (tx) => {
-      // 1. Deduct balance from user wallet
+      const freshWallet = await tx.wallet.findUnique({
+        where: { userId: user.id },
+      });
+      const latestBalance = Number(freshWallet?.balance ?? currentBalance);
+      const latestTurnOver = Number(freshWallet?.turnOver ?? 0);
+      const remainingBalance = Number((latestBalance - amount).toFixed(2));
+
+      // Reduce turnover by the withdrawn amount; if remaining balance <= 0 (or < 1), turnover becomes 0
+      const nextTurnOver =
+        remainingBalance <= 0
+          ? 0
+          : Math.max(0, Number((latestTurnOver - amount).toFixed(2)));
+
+      // 1. Deduct balance and adjust turnover on user wallet
       const updatedWallet = await tx.wallet.update({
         where: { userId: user.id },
         data: {
           balance: { decrement: amount },
+          turnOver: new Prisma.Decimal(nextTurnOver.toFixed(2)),
         },
       });
 

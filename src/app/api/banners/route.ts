@@ -1,9 +1,88 @@
 import { auth } from "@/auth";
 import { INTERNAL_SERVER_ERROR } from "@/error";
 import { db } from "@/lib/db";
+import cloudinary from "cloudinary";
 import fs from "fs";
 import path from "path";
 import { NextRequest, NextResponse } from "next/server";
+
+// Configure Cloudinary if credentials are present
+const cloudName =
+  process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_NAME;
+const cloudKey = process.env.CLOUDINARY_API_KEY || process.env.CLOUDINARY_API;
+const cloudSecret =
+  process.env.CLOUDINARY_API_SECRET || process.env.CLOUDINARY_SECRET;
+
+if (cloudName && cloudKey && cloudSecret) {
+  cloudinary.v2.config({
+    cloud_name: cloudName,
+    api_key: cloudKey,
+    api_secret: cloudSecret,
+  });
+}
+
+function getMimeTypeFromExt(fileName: string, fallbackType?: string): string {
+  if (fallbackType && fallbackType.startsWith("image/")) {
+    return fallbackType;
+  }
+  const ext = path.extname(fileName).toLowerCase();
+  switch (ext) {
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    case ".webp":
+      return "image/webp";
+    case ".gif":
+      return "image/gif";
+    case ".svg":
+      return "image/svg+xml";
+    case ".avif":
+      return "image/avif";
+    default:
+      return "image/png";
+  }
+}
+
+async function uploadBufferToCloudinaryOrDataUrl(
+  buffer: Buffer,
+  fileName: string,
+  mimeType: string
+): Promise<string> {
+  if (cloudName && cloudKey && cloudSecret) {
+    try {
+      const uploadedUrl = await new Promise<string>((resolve, reject) => {
+        cloudinary.v2.uploader
+          .upload_stream(
+            {
+              folder: "rk444_banners",
+              resource_type: "image",
+              unique_filename: true,
+              overwrite: false,
+            },
+            (error, result) => {
+              if (error || !result?.secure_url) {
+                reject(error || new Error("Cloudinary upload returned no URL"));
+              } else {
+                resolve(result.secure_url);
+              }
+            }
+          )
+          .end(buffer);
+      });
+      return uploadedUrl;
+    } catch (err) {
+      console.warn(
+        "[banners] Cloudinary upload failed, falling back to persistent data URL:",
+        err
+      );
+    }
+  }
+
+  // Fallback: persistent Base64 Data URL stored in PostgreSQL so it works across all containers
+  return `data:${mimeType};base64,${buffer.toString("base64")}`;
+}
 
 // Helper to sync all currently active banners into SiteSetting.sliderImages
 async function syncActiveBannersToSiteSettings() {
@@ -86,12 +165,6 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Ensure directory exists: public/uploads/banners
-      const uploadDir = path.join(process.cwd(), "public", "uploads", "banners");
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-
       // Current max sort order
       const lastBanner = await db.banner.findFirst({
         orderBy: { sortOrder: "desc" },
@@ -104,18 +177,15 @@ export async function POST(req: NextRequest) {
         if (!(file instanceof File) || file.size === 0) continue;
 
         const ext = path.extname(file.name) || ".png";
-        const baseClean = path
-          .basename(file.name, ext)
-          .replace(/[^a-zA-Z0-9_-]/g, "_");
-        const uniqueFileName = `${Date.now()}-${Math.floor(
-          Math.random() * 1000
-        )}-${baseClean}${ext}`;
-        const filePath = path.join(uploadDir, uniqueFileName);
-
         const bytes = await file.arrayBuffer();
-        await fs.promises.writeFile(filePath, Buffer.from(bytes));
+        const buffer = Buffer.from(bytes);
+        const mimeType = getMimeTypeFromExt(file.name, file.type);
 
-        const publicUrl = `/uploads/banners/${uniqueFileName}`;
+        const publicUrl = await uploadBufferToCloudinaryOrDataUrl(
+          buffer,
+          file.name,
+          mimeType
+        );
         const rawTitle = path.basename(file.name, ext).replace(/[_-]/g, " ");
 
         const banner = await db.banner.create({
