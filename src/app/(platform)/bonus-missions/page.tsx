@@ -88,7 +88,7 @@ export default function BonusMissionsAdminPage() {
             <FaGift className="text-emerald-400" /> Bonus & Mission Control Engine
           </h1>
           <p className="text-sm text-gray-400">
-            সম্পূর্ণ বোনাস, ফ্রি টাকা ও মিশন পেজ এডমিন থেকে নিয়ন্ত্রণ করুন। অপ্রয়োজনীয় ফ্রি রিওয়ার্ড বন্ধ বা পরিবর্তন করুন।
+            Manage all platform bonuses, free rewards, and mission pages from one place. Enable, disable, or customize reward amounts anytime.
           </p>
         </div>
         <Button
@@ -115,7 +115,7 @@ export default function BonusMissionsAdminPage() {
             <MdOutlineSecurity className="text-xl" /> Master Page & Feature Switches
           </CardTitle>
           <CardDescription className="text-gray-400">
-            প্লেয়ারদের অ্যাপ বা ওয়েবসাইট থেকে নির্দিষ্ট পেজ ও ফিচার চালু বা সম্পূর্ণ বন্ধ (Disable) রাখুন।
+            Enable or completely disable specific bonus pages and promotional features across the website and mobile app.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6 sm:grid-cols-2">
@@ -124,7 +124,7 @@ export default function BonusMissionsAdminPage() {
             <div className="space-y-0.5">
               <Label className="font-semibold text-white">Mission Page (/mission)</Label>
               <p className="text-xs text-gray-400">
-                বন্ধ রাখলে প্লেয়াররা ওয়েবসাইট থেকে মিশন পেজ দেখতে পাবে না
+                When disabled, players cannot access or claim rewards from the Mission page
               </p>
             </div>
             <Switch
@@ -138,7 +138,7 @@ export default function BonusMissionsAdminPage() {
             <div className="space-y-0.5">
               <Label className="font-semibold text-white">Reward Center (/rewardCenter)</Label>
               <p className="text-xs text-gray-400">
-                বন্ধ রাখলে প্লেয়ারদের দৈনিক চেক-ইন ও রিওয়ার্ড পেজ বন্ধ থাকবে
+                When disabled, the daily check-in and reward center page is turned off
               </p>
             </div>
             <Switch
@@ -154,7 +154,7 @@ export default function BonusMissionsAdminPage() {
                 <FaMobileAlt className="text-blue-400" /> App Download ৳50 Instant Bonus
               </Label>
               <p className="text-xs text-gray-400">
-                অ্যাপে ঢুকলে ৫০ টাকা ফ্রি বোনাস পাওয়ার অপশন সক্রিয় রাখবেন কি না
+                Toggle the instant ৳50 free bonus for logging in via the mobile app
               </p>
             </div>
             <Switch
@@ -168,7 +168,7 @@ export default function BonusMissionsAdminPage() {
             <div className="space-y-0.5">
               <Label className="font-semibold text-white">Lucky Wheel System</Label>
               <p className="text-xs text-gray-400">
-                প্লেয়ারদের লাকি হুইল স্পিন করার ফিচার চালু বা বন্ধ রাখুন
+                Enable or disable the daily Lucky Wheel spin feature for players
               </p>
             </div>
             <Switch
@@ -186,7 +186,7 @@ export default function BonusMissionsAdminPage() {
             <FaLock className="text-lg" /> Anti-Fraud: Deposit Requirement for Bonuses
           </CardTitle>
           <CardDescription className="text-gray-400">
-            ফ্রি টাকা নিয়ে যাতে কেউ খেলতে না পারে, তার জন্য রিয়েল ডিপোজিটের শর্ত বাধ্যতামূলক করুন।
+            Require players to have a verified real deposit before claiming free bonuses or mission rewards.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6 sm:grid-cols-2">
@@ -196,7 +196,7 @@ export default function BonusMissionsAdminPage() {
                 Require Real Deposit Before Claiming
               </Label>
               <p className="text-xs text-gray-400">
-                সক্রিয় রাখলে কোনো ইউজার ডিপোজিট ছাড়া কোনো বোনাস বা রিওয়ার্ড ক্লেইম করতে পারবে না
+                When enabled, users without an approved deposit cannot claim free bonuses or mission rewards
               </p>
             </div>
             <Switch
@@ -219,7 +219,7 @@ export default function BonusMissionsAdminPage() {
               className="border-gray-700 bg-gray-900 text-white"
             />
             <p className="text-xs text-gray-400">
-              ইউজারের অন্তত এই পরিমাণ আসল ডিপোজিট থাকতে হবে রিওয়ার্ড ক্লেইম করতে
+              Minimum total approved deposit required on the player account to unlock reward claims
             </p>
           </div>
         </CardContent>
@@ -232,7 +232,7 @@ export default function BonusMissionsAdminPage() {
             <FaCoins className="text-lg" /> Mission Rewards Settings & Amounts
           </CardTitle>
           <CardDescription className="text-gray-400">
-            প্রতিটি মিশনের টাকার পরিমাণ এবং চালু/বন্ধ অবস্থা এডমিন থেকে সেট করুন।
+            Configure the reward amount and active status for each individual mission.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -240,7 +240,7 @@ export default function BonusMissionsAdminPage() {
           <div className="flex flex-col justify-between gap-4 rounded-lg border border-gray-800 bg-gray-950/60 p-4 sm:flex-row sm:items-center">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-white">দৈনিক লগইন রিওয়ার্ড (Daily Login)</span>
+                <span className="font-semibold text-white">Daily Login Reward</span>
                 {!config.dailyLoginEnabled && (
                   <span className="rounded bg-rose-950/60 px-2 py-0.5 text-[10px] font-medium text-rose-400">
                     DISABLED
@@ -248,7 +248,7 @@ export default function BonusMissionsAdminPage() {
                 )}
               </div>
               <p className="text-xs text-gray-400">
-                শুধু লগইন করলেই যে ফ্রি ২০ টাকা পেত। বন্ধ রাখলে কোনো ফ্রি টাকা দেওয়া হবে না।
+                Free reward granted just for logging in. Keep disabled to prevent no-deposit free cash claims.
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -274,9 +274,9 @@ export default function BonusMissionsAdminPage() {
           {/* Daily Deposit 500 Reward */}
           <div className="flex flex-col justify-between gap-4 rounded-lg border border-gray-800 bg-gray-950/60 p-4 sm:flex-row sm:items-center">
             <div className="space-y-1">
-              <span className="font-semibold text-white">আজকের প্রথম ডিপোজিট (Daily 1st Deposit 500)</span>
+              <span className="font-semibold text-white">Daily First Deposit (৳500+)</span>
               <p className="text-xs text-gray-400">
-                দিনে ৫০০ টাকা ডিপোজিট করলে অতিরিক্ত ক্যাশব্যাক বোনাস
+                Extra cashback bonus when a player deposits at least ৳500 in a day
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -302,9 +302,9 @@ export default function BonusMissionsAdminPage() {
           {/* First Ever Deposit Badge */}
           <div className="flex flex-col justify-between gap-4 rounded-lg border border-gray-800 bg-gray-950/60 p-4 sm:flex-row sm:items-center">
             <div className="space-y-1">
-              <span className="font-semibold text-white">প্রথম ডিপোজিটর ব্যাজ (First Ever Deposit)</span>
+              <span className="font-semibold text-white">First Depositor Badge (First Ever Deposit)</span>
               <p className="text-xs text-gray-400">
-                জীবনে প্রথম সফল ডিপোজিট করার রিওয়ার্ড উপহার
+                One-time achievement reward for completing the first approved deposit
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -332,9 +332,9 @@ export default function BonusMissionsAdminPage() {
           {/* Daily Turnover Sprint */}
           <div className="flex flex-col justify-between gap-4 rounded-lg border border-gray-800 bg-gray-950/60 p-4 sm:flex-row sm:items-center">
             <div className="space-y-1">
-              <span className="font-semibold text-white">টার্নওভার স্প্রিন্ট (১,০০০ ৳ টার্নওভার)</span>
+              <span className="font-semibold text-white">Turnover Sprint (৳1,000 Daily Bet)</span>
               <p className="text-xs text-gray-400">
-                গেমে ১,০০০ টাকা বেট সম্পন্ন করলে বোনাস
+                Reward for completing ৳1,000 in game betting turnover within a day
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -362,9 +362,9 @@ export default function BonusMissionsAdminPage() {
           {/* Weekly Deposit 5000 */}
           <div className="flex flex-col justify-between gap-4 rounded-lg border border-gray-800 bg-gray-950/60 p-4 sm:flex-row sm:items-center">
             <div className="space-y-1">
-              <span className="font-semibold text-white">সাপ্তাহিক ডিপোজিট রাশ (৫,০০০ ৳ ডিপোজিট)</span>
+              <span className="font-semibold text-white">Weekly Deposit Rush (৳5,000 Deposit)</span>
               <p className="text-xs text-gray-400">
-                সপ্তাহে মোট ৫,০০০ ৳ ডিপোজিট সম্পন্ন করলে বড় পুরস্কার
+                Weekly milestone reward for reaching ৳5,000 in total approved deposits
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -392,9 +392,9 @@ export default function BonusMissionsAdminPage() {
           {/* Weekly Invite 2 Friends */}
           <div className="flex flex-col justify-between gap-4 rounded-lg border border-gray-800 bg-gray-950/60 p-4 sm:flex-row sm:items-center">
             <div className="space-y-1">
-              <span className="font-semibold text-white">ইনভাইট চ্যাম্পিয়ন (২ জন বন্ধু ইনভাইট)</span>
+              <span className="font-semibold text-white">Invite Champion (Invite 2 Friends)</span>
               <p className="text-xs text-gray-400">
-                রেফারেল দিয়ে ২ জন প্লেয়ার যুক্ত করলে রিওয়ার্ড
+                Reward for inviting 2 new players via referral link
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -427,10 +427,10 @@ export default function BonusMissionsAdminPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-lg text-emerald-400">
-                <FaCalendarCheck className="text-lg" /> Daily Check-in (৭ দিনের রিওয়ার্ড ক্যালেন্ডার)
+                <FaCalendarCheck className="text-lg" /> Daily Check-in (7-Day Reward Calendar)
               </CardTitle>
               <CardDescription className="text-gray-400">
-                প্লেয়াররা প্রতিদিন চেক-ইন করলে দিন ১ থেকে দিন ৭ এ কত টাকা পাবে তা সেট করুন।
+                Configure the daily check-in reward amounts from Day 1 through Day 7.
               </CardDescription>
             </div>
             <Switch

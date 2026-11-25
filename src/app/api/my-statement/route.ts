@@ -7,12 +7,13 @@ export const dynamic = "force-dynamic";
 
 export interface StatementRecord {
   id: string;
-  direction: "GIVEN" | "TAKEN"; // GIVEN = কাকে কি দিচ্ছি (+৳), TAKEN = কার থেকে কি নিচ্ছি (-৳)
+  direction: "GIVEN" | "TAKEN";
   category:
     | "MANUAL_ADD"
     | "DEPOSIT_APPROVED"
     | "MANUAL_WITHDRAW"
-    | "WITHDRAW_APPROVED";
+    | "WITHDRAW_APPROVED"
+    | "BONUS_CLAIMED";
   categoryLabel: string;
   amount: number;
   user: {
@@ -105,14 +106,17 @@ export async function GET(req: NextRequest) {
         ? { subAdminId: currentAdminId }
         : {};
 
-    // 1. Fetch manual balance additions & manual withdrawals from Notifications
-    const manualNotifications = await db.notification.findMany({
+    // 1. Fetch manual balance additions, manual withdrawals & bonus notifications
+    const manualAndBonusNotifications = await db.notification.findMany({
       where: {
         ...(createdAtFilter && { createdAt: createdAtFilter }),
         ...(Object.keys(userScopeWhere).length > 0 && { user: userScopeWhere }),
         OR: [
           { title: "Balance Added" },
           { title: "Manual Withdrawal Processed" },
+          { title: { startsWith: "Daily Check-in" } },
+          { title: { startsWith: "Mission Reward" } },
+          { title: { contains: "App Download" } },
         ],
       },
       include: {
@@ -173,14 +177,66 @@ export async function GET(req: NextRequest) {
       take: 1000,
     });
 
+    // 4. Fetch Claimed Invitation/Referral Milestone Rewards & Lucky Wheel Spins
+    const [claimedInviteRewards, luckyWheelSpins] = await Promise.all([
+      db.claimedInvitationReward
+        .findMany({
+          where: {
+            ...(createdAtFilter && { createdAt: createdAtFilter }),
+            ...(Object.keys(userScopeWhere).length > 0 && {
+              invitationBonus: { user: userScopeWhere },
+            }),
+          },
+          include: {
+            reward: true,
+            invitationBonus: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    phone: true,
+                    playerId: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1000,
+        })
+        .catch(() => []),
+      db.luckyWheelSpin
+        .findMany({
+          where: {
+            prizeValue: { gt: 0 },
+            ...(createdAtFilter && { createdAt: createdAtFilter }),
+            ...(Object.keys(userScopeWhere).length > 0 && { user: userScopeWhere }),
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                phone: true,
+                playerId: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1000,
+        })
+        .catch(() => []),
+    ]);
+
     const paymentWallets = await db.paymentWallet.findMany();
     const pwMap = new Map(paymentWallets.map((pw) => [pw.id, pw.walletName]));
 
     const manualWithdrawIds = new Set<string>();
     const records: StatementRecord[] = [];
 
-    // Process Manual Notifications (Manual Add Balance & Manual Withdraw)
-    for (const notif of manualNotifications) {
+    // Process Manual & Bonus Notifications
+    for (const notif of manualAndBonusNotifications) {
       const meta = (notif.metadata as Record<string, any>) || {};
       const mType = String(meta.type || "");
 
@@ -196,7 +252,7 @@ export async function GET(req: NextRequest) {
           id: `manual-add-${notif.id}`,
           direction: "GIVEN",
           category: "MANUAL_ADD",
-          categoryLabel: "Manual Balance Given (রিচার্জ দেওয়া হয়েছে)",
+          categoryLabel: "Manual Deposit",
           amount: amt,
           user: {
             id: notif.user?.id || notif.userId,
@@ -224,7 +280,7 @@ export async function GET(req: NextRequest) {
           id: `manual-wd-${notif.id}`,
           direction: "TAKEN",
           category: "MANUAL_WITHDRAW",
-          categoryLabel: "Manual Balance Taken (ম্যানুয়াল কাটা/উইথড্র)",
+          categoryLabel: "Manual Withdraw",
           amount: amt,
           user: {
             id: notif.user?.id || notif.userId,
@@ -235,15 +291,107 @@ export async function GET(req: NextRequest) {
           method: meta.walletName
             ? `${meta.walletName}${meta.walletNumber ? ` (${meta.walletNumber})` : ""}`
             : "Admin Manual Deduct",
-          reference: meta.withdrawId ? `MWD-${String(meta.withdrawId).slice(-6).toUpperCase()}` : "DIRECT-DEDUCT",
+          reference: meta.withdrawId
+            ? `MWD-${String(meta.withdrawId).slice(-6).toUpperCase()}`
+            : "DIRECT-DEDUCT",
           note: meta.note || notif.description || "Manual withdrawal processed by Admin",
           adminName: meta.adminName || "Admin",
+          createdAt: notif.createdAt.toISOString(),
+        });
+      } else if (
+        mType === "SIGNIN_CLAIM" ||
+        notif.title?.startsWith("Daily Check-in") ||
+        mType === "MISSION_CLAIM" ||
+        notif.title?.startsWith("Mission Reward") ||
+        notif.title?.includes("App Download")
+      ) {
+        let amt = Number(meta.prize ?? meta.rewardAmount ?? meta.amount ?? 0);
+        if (!amt || isNaN(amt)) {
+          const match = (notif.description || "").match(/৳\s*([0-9]+(\.[0-9]+)?)/);
+          if (match) amt = parseFloat(match[1]);
+        }
+        if (amt <= 0) continue;
+
+        const isMission =
+          mType === "MISSION_CLAIM" || notif.title?.startsWith("Mission Reward");
+        const isAppBonus = notif.title?.includes("App Download");
+        const bonusSource = isMission
+          ? "Mission Reward"
+          : isAppBonus
+          ? "App Download Bonus"
+          : "Daily Check-in Bonus";
+
+        records.push({
+          id: `bonus-notif-${notif.id}`,
+          direction: "GIVEN",
+          category: "BONUS_CLAIMED",
+          categoryLabel: bonusSource,
+          amount: amt,
+          user: {
+            id: notif.user?.id || notif.userId,
+            phone: notif.user?.phone || "N/A",
+            playerId: notif.user?.playerId || "N/A",
+            name: notif.user?.name || "Player",
+          },
+          method: bonusSource,
+          reference: meta.missionId || (meta.day ? `DAY-${meta.day}` : "BONUS"),
+          note: `${notif.title} (৳${amt.toFixed(2)})`,
+          adminName: "System Bonus",
           createdAt: notif.createdAt.toISOString(),
         });
       }
     }
 
-    // Process Approved Deposits
+    // Process Referral Milestone Bonuses
+    for (const inv of claimedInviteRewards) {
+      const amt = Number(inv.reward?.prize ?? 0);
+      if (amt <= 0) continue;
+      const u = inv.invitationBonus?.user;
+      records.push({
+        id: `bonus-ref-${inv.id}`,
+        direction: "GIVEN",
+        category: "BONUS_CLAIMED",
+        categoryLabel: "Referral Milestone Bonus",
+        amount: amt,
+        user: {
+          id: u?.id || inv.invitationBonus?.userId || "N/A",
+          phone: u?.phone || "N/A",
+          playerId: u?.playerId || "N/A",
+          name: u?.name || "Player",
+        },
+        method: "Referral Milestone",
+        reference: `TARGET-${inv.reward?.targetReferral ?? 1}`,
+        note: `Referral milestone reward claimed (Target: ${inv.reward?.targetReferral ?? 1} referrals, Prize: ৳${amt.toFixed(2)})`,
+        adminName: "System Bonus",
+        createdAt: inv.createdAt.toISOString(),
+      });
+    }
+
+    // Process Lucky Wheel Spins
+    for (const spin of luckyWheelSpins) {
+      const amt = Number(spin.prizeValue ?? 0);
+      if (amt <= 0) continue;
+      records.push({
+        id: `bonus-spin-${spin.id}`,
+        direction: "GIVEN",
+        category: "BONUS_CLAIMED",
+        categoryLabel: "Lucky Wheel Bonus",
+        amount: amt,
+        user: {
+          id: spin.user?.id || spin.userId,
+          phone: spin.user?.phone || "N/A",
+          playerId: spin.user?.playerId || "N/A",
+          name: spin.user?.name || "Player",
+        },
+        method: "Lucky Wheel Spin",
+        reference: `SPIN-${spin.id.slice(-6).toUpperCase()}`,
+        note: `Lucky Wheel prize: ${spin.prizeLabel || `৳${amt.toFixed(2)}`}`,
+        adminName: "System Bonus",
+        createdAt: spin.createdAt.toISOString(),
+      });
+    }
+
+    // Process Approved Deposits (and track any Deposit Bonus separately)
     for (const dep of approvedDeposits) {
       const amt = Number(dep.amount ?? 0);
       const bonus = Number(dep.bonus ?? 0);
@@ -255,8 +403,8 @@ export async function GET(req: NextRequest) {
         id: `dep-${dep.id}`,
         direction: "GIVEN",
         category: "DEPOSIT_APPROVED",
-        categoryLabel: "Deposit Approved (ডিপোজিট দেওয়া হয়েছে)",
-        amount: amt + bonus,
+        categoryLabel: "Deposit Approved",
+        amount: amt,
         user: {
           id: dep.user?.id || dep.userId,
           phone: dep.user?.phone || "N/A",
@@ -265,13 +413,31 @@ export async function GET(req: NextRequest) {
         },
         method: `${gatewayName} (${dep.walletNumber || "N/A"})`,
         reference: dep.trxID || dep.trackingNumber || dep.id.slice(-8),
-        note:
-          bonus > 0
-            ? `Deposit ৳${amt.toFixed(2)} + Bonus ৳${bonus.toFixed(2)}${dep.senderNumber ? ` from ${dep.senderNumber}` : ""}`
-            : `Approved deposit ৳${amt.toFixed(2)}${dep.senderNumber ? ` from ${dep.senderNumber}` : ""}`,
+        note: `Approved deposit ৳${amt.toFixed(2)}${dep.senderNumber ? ` from ${dep.senderNumber}` : ""}`,
         adminName: "Admin / Auto",
         createdAt: dep.createdAt.toISOString(),
       });
+
+      if (bonus > 0) {
+        records.push({
+          id: `dep-bonus-${dep.id}`,
+          direction: "GIVEN",
+          category: "BONUS_CLAIMED",
+          categoryLabel: "Deposit Bonus",
+          amount: bonus,
+          user: {
+            id: dep.user?.id || dep.userId,
+            phone: dep.user?.phone || "N/A",
+            playerId: dep.user?.playerId || "N/A",
+            name: dep.user?.name || "Player",
+          },
+          method: `Deposit Bonus (${dep.bonusFor || "Promo"})`,
+          reference: dep.trxID || dep.trackingNumber || dep.id.slice(-8),
+          note: `Bonus ৳${bonus.toFixed(2)} on deposit of ৳${amt.toFixed(2)}`,
+          adminName: "System Bonus",
+          createdAt: dep.createdAt.toISOString(),
+        });
+      }
     }
 
     // Process Approved Withdrawals (skip duplicates already counted in manualWithdrawIds)
@@ -287,7 +453,7 @@ export async function GET(req: NextRequest) {
         id: `wd-${wd.id}`,
         direction: "TAKEN",
         category: "WITHDRAW_APPROVED",
-        categoryLabel: "Withdraw Deducted (উইথড্র নেওয়া/দেওয়া হয়েছে)",
+        categoryLabel: "Withdraw Approved",
         amount: amt,
         user: {
           id: wd.user?.id || wd.userId,
@@ -312,9 +478,11 @@ export async function GET(req: NextRequest) {
     let totalGiven = 0;
     let totalManualGiven = 0;
     let totalDepositGiven = 0;
+    let totalBonusGiven = 0;
     let givenCount = 0;
     let manualGivenCount = 0;
     let depositGivenCount = 0;
+    let bonusGivenCount = 0;
 
     let totalTaken = 0;
     let totalManualTaken = 0;
@@ -330,6 +498,9 @@ export async function GET(req: NextRequest) {
         if (r.category === "MANUAL_ADD") {
           totalManualGiven += r.amount;
           manualGivenCount++;
+        } else if (r.category === "BONUS_CLAIMED") {
+          totalBonusGiven += r.amount;
+          bonusGivenCount++;
         } else {
           totalDepositGiven += r.amount;
           depositGivenCount++;
@@ -358,6 +529,9 @@ export async function GET(req: NextRequest) {
       ) {
         return false;
       }
+      if (filterType === "BONUS" && r.category !== "BONUS_CLAIMED") {
+        return false;
+      }
 
       if (search) {
         const hay = `${r.user.phone} ${r.user.playerId} ${r.user.name} ${r.reference} ${r.method} ${r.note} ${r.categoryLabel}`.toLowerCase();
@@ -376,9 +550,11 @@ export async function GET(req: NextRequest) {
         totalGiven: Number(totalGiven.toFixed(2)),
         totalManualGiven: Number(totalManualGiven.toFixed(2)),
         totalDepositGiven: Number(totalDepositGiven.toFixed(2)),
+        totalBonusGiven: Number(totalBonusGiven.toFixed(2)),
         givenCount,
         manualGivenCount,
         depositGivenCount,
+        bonusGivenCount,
         totalTaken: Number(totalTaken.toFixed(2)),
         totalManualTaken: Number(totalManualTaken.toFixed(2)),
         totalWithdrawTaken: Number(totalWithdrawTaken.toFixed(2)),

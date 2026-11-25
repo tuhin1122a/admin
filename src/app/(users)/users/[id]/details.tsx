@@ -831,8 +831,8 @@ const Details = ({ userId }: { userId: string }) => {
                     <TableRow className="border-gray-800 hover:bg-transparent">
                       <TableHead className="text-xs font-semibold text-gray-300">Game & Provider</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-300">Session Time</TableHead>
-                      <TableHead className="text-xs font-semibold text-gray-300">Entry Balance (শুরুর ব্যালেন্স)</TableHead>
-                      <TableHead className="text-xs font-semibold text-gray-300">Exit Balance (শেষের ব্যালেন্স)</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-300">Entry Balance</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-300">Exit Balance</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-300">Session Net P/L</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-300">Total Stakes & Wins</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-300">Status</TableHead>

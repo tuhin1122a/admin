@@ -404,25 +404,24 @@ export default function GgrWalletLedger() {
 
               {/* How it works explanation */}
               <div className="bg-gray-950/50 rounded-lg p-3 border border-gray-800 text-xs text-gray-400 leading-relaxed">
-                <strong className="text-gray-300">কীভাবে কাজ করে:</strong>{" "}
-                আপনার GGR balance{" "}
+                <strong className="text-gray-300">How It Works:</strong>{" "}
+                Your GGR balance{" "}
                 <span className="text-amber-400 font-mono">{tk(live)}</span>
                 {" → "}
-                সর্বোচ্চ user balance{" "}
+                supports max player launch balance{" "}
                 <span className="text-sky-400 font-mono">
                   {tk(data?.maxLaunchBalance, 0)}
                 </span>
                 {" (÷5%). "}
-                এখন সব user-এর মিলিয়ে{" "}
+                Total active user wallet balance is currently{" "}
                 <span className="text-white font-mono">
                   {tk(data?.totalUserWalletBalance)}
-                </span>{" "}
-                আছে। আর{" "}
+                </span>
+                {", leaving "}
                 <span className="text-emerald-400 font-mono">
                   {tk(data?.remainingCapacity, 0)}
                 </span>{" "}
-                capacity বাকি — মানে এই পরিমাণ নতুন deposit হলেও সব user গেম
-                খুলতে পারবে। এর বেশি হলে বড় balance-এর users আটকে যাবে।
+                in remaining deposit capacity before high-balance game launches are blocked.
               </div>
             </div>
           </div>

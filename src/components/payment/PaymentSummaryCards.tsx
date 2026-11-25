@@ -11,6 +11,7 @@ import {
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  Gift,
   MinusCircle,
   PlusCircle,
 } from "lucide-react";
@@ -37,6 +38,8 @@ export function PaymentSummaryCards({
     manualGivenCount: 0,
     totalManualTaken: 0,
     manualTakenCount: 0,
+    totalBonusGiven: 0,
+    bonusGivenCount: 0,
   });
   const [loading, setLoading] = useState(false);
 
@@ -72,6 +75,8 @@ export function PaymentSummaryCards({
             manualGivenCount: Number(data.summary.manualGivenCount ?? 0),
             totalManualTaken: Number(data.summary.totalManualTaken ?? 0),
             manualTakenCount: Number(data.summary.manualTakenCount ?? 0),
+            totalBonusGiven: Number(data.summary.totalBonusGiven ?? 0),
+            bonusGivenCount: Number(data.summary.bonusGivenCount ?? 0),
           });
         }
       } catch (err) {
@@ -88,7 +93,7 @@ export function PaymentSummaryCards({
   }, [from, to, period, refreshTrigger]);
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-5">
       {/* 1. Total Deposit */}
       <Card className="bg-gray-900/90 border-emerald-500/30 shadow-md">
         <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
@@ -96,7 +101,7 @@ export function PaymentSummaryCards({
             <span className="truncate">Total Deposit</span>
             <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
           </CardDescription>
-          <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-emerald-400 font-mono truncate">
+          <CardTitle className="text-base sm:text-xl font-extrabold text-emerald-400 font-mono truncate">
             ৳{" "}
             {summary.totalDepositGiven.toLocaleString("en-IN", {
               minimumFractionDigits: 2,
@@ -121,7 +126,7 @@ export function PaymentSummaryCards({
             <span className="truncate">Total Withdraw</span>
             <ArrowDownLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400 shrink-0" />
           </CardDescription>
-          <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-rose-400 font-mono truncate">
+          <CardTitle className="text-base sm:text-xl font-extrabold text-rose-400 font-mono truncate">
             ৳{" "}
             {summary.totalWithdrawTaken.toLocaleString("en-IN", {
               minimumFractionDigits: 2,
@@ -146,7 +151,7 @@ export function PaymentSummaryCards({
             <span className="truncate">Total Manual Deposit</span>
             <PlusCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
           </CardDescription>
-          <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-amber-400 font-mono truncate">
+          <CardTitle className="text-base sm:text-xl font-extrabold text-amber-400 font-mono truncate">
             ৳{" "}
             {summary.totalManualGiven.toLocaleString("en-IN", {
               minimumFractionDigits: 2,
@@ -171,7 +176,7 @@ export function PaymentSummaryCards({
             <span className="truncate">Manual Withdraw</span>
             <MinusCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400 shrink-0" />
           </CardDescription>
-          <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-purple-400 font-mono truncate">
+          <CardTitle className="text-base sm:text-xl font-extrabold text-purple-400 font-mono truncate">
             ৳{" "}
             {summary.totalManualTaken.toLocaleString("en-IN", {
               minimumFractionDigits: 2,
@@ -184,6 +189,31 @@ export function PaymentSummaryCards({
               ? "Updating..."
               : `${summary.manualTakenCount} Manual Deduct${
                   summary.manualTakenCount !== 1 ? "s" : ""
+                }`}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* 5. Total Bonus */}
+      <Card className="bg-gray-900/90 border-cyan-500/30 shadow-md col-span-2 lg:col-span-1">
+        <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
+          <CardDescription className="text-[11px] sm:text-xs text-cyan-300 font-semibold flex items-center justify-between gap-1">
+            <span className="truncate">Total Bonus</span>
+            <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 shrink-0" />
+          </CardDescription>
+          <CardTitle className="text-base sm:text-xl font-extrabold text-cyan-400 font-mono truncate">
+            ৳{" "}
+            {summary.totalBonusGiven.toLocaleString("en-IN", {
+              minimumFractionDigits: 2,
+            })}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-3 sm:p-4 pt-0">
+          <p className="text-[10px] sm:text-xs text-gray-400 truncate">
+            {loading
+              ? "Updating..."
+              : `${summary.bonusGivenCount} Bonus Claim${
+                  summary.bonusGivenCount !== 1 ? "s" : ""
                 }`}
           </p>
         </CardContent>

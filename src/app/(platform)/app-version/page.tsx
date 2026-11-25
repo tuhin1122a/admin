@@ -104,7 +104,7 @@ export default function AppVersionPage() {
             </h1>
           </div>
           <p className="text-xs sm:text-sm text-gray-400 mt-1">
-            ম্যানেজ করুন অ্যান্ড্রয়েড মোবাইল অ্যাপের নতুন ভার্সন, APK ডাউনলোড লিংক এবং বাধ্যতামূলক অটো-আপডেট সেটিংস।
+            Manage Android mobile app versions, direct APK download URL, and mandatory auto-update settings.
           </p>
         </div>
 
@@ -151,7 +151,7 @@ export default function AppVersionPage() {
               {/* Latest Version */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-300">
-                  Latest Version Name (যেমন: 1.0.1, 1.1.0) *
+                  Latest Version Name (e.g. 1.0.1, 1.1.0) *
                 </label>
                 <input
                   type="text"
@@ -198,7 +198,7 @@ export default function AppVersionPage() {
               {/* Force Update Toggle */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-300 flex items-center justify-between">
-                  <span>Force Update (বাধ্যতামূলক আপডেট)</span>
+                  <span>Force Update</span>
                   <span className={config.forceUpdate ? "text-red-400 font-bold" : "text-gray-400"}>
                     {config.forceUpdate ? "MANDATORY" : "OPTIONAL"}
                   </span>
@@ -213,8 +213,8 @@ export default function AppVersionPage() {
                 >
                   <span className="text-xs font-bold">
                     {config.forceUpdate
-                      ? "🔒 Force Update ON (আপডেট ছাড়া অ্যাপ ওপেন হবে না)"
-                      : "🔓 Optional (ইউজার পরে আপডেট করতে পারবে)"}
+                      ? "🔒 Force Update ON (App requires update to open)"
+                      : "🔓 Optional (Users can skip and update later)"}
                   </span>
                   <input
                     type="checkbox"
@@ -245,14 +245,14 @@ export default function AppVersionPage() {
                 </span>
               </div>
               <p className="text-[11px] text-gray-400">
-                ইউজার যখন অ্যাপে &quot;Update Now&quot; চাপবে, তখন এই লিংকের APK টি সরাসরি ডাউনলোড ও ইনস্টল শুরু হবে।
+                When a player taps &quot;Update Now&quot; in the mobile app, this APK URL will download and install directly.
               </p>
             </div>
 
             {/* Release Notes */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-gray-300">
-                Release Notes / What&apos;s New (ইউজার অ্যাপে যা দেখতে পাবে)
+                Release Notes / What&apos;s New
               </label>
               <textarea
                 rows={4}
@@ -326,13 +326,13 @@ export default function AppVersionPage() {
           <div className="p-4 rounded-2xl bg-[#0f172a] border border-gray-800 space-y-2 text-xs text-gray-300">
             <h4 className="font-bold text-white flex items-center gap-1.5">
               <FaListUl className="text-yellow-400" />
-              <span>এটি যেভাবে কাজ করে:</span>
+              <span>How It Works:</span>
             </h4>
             <p>
-              ১. যখনই আপনি এখানে নতুন ভার্সন ও লিংক দিয়ে <strong>&quot;Publish App Update&quot;</strong> করবেন, সমস্ত সক্রিয় অ্যাপ ওপেন হওয়ার সাথে সাথে অটোমেটিক নোটিফিকেশন পেয়ে যাবে।
+              1. Whenever you publish a new version and APK URL here, all installed mobile apps automatically receive the update prompt on launch.
             </p>
             <p>
-              ২. <strong>Force Update ON</strong> থাকলে ইউজার আপডেট শেষ না করা পর্যন্ত অ্যাপ ব্যবহার করতে পারবে না।
+              2. When <strong>Force Update ON</strong> is enabled, users must complete the update before using the app.
             </p>
           </div>
         </div>

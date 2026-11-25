@@ -43,6 +43,7 @@ import {
   ArrowUpRight,
   CalendarIcon,
   FileSpreadsheet,
+  Gift,
   Loader2,
   PlusCircle,
   MinusCircle,
@@ -58,7 +59,8 @@ interface StatementRecord {
     | "MANUAL_ADD"
     | "DEPOSIT_APPROVED"
     | "MANUAL_WITHDRAW"
-    | "WITHDRAW_APPROVED";
+    | "WITHDRAW_APPROVED"
+    | "BONUS_CLAIMED";
   categoryLabel: string;
   amount: number;
   user: {
@@ -78,9 +80,11 @@ interface StatementSummary {
   totalGiven: number;
   totalManualGiven: number;
   totalDepositGiven: number;
+  totalBonusGiven?: number;
   givenCount: number;
   manualGivenCount?: number;
   depositGivenCount?: number;
+  bonusGivenCount?: number;
   totalTaken: number;
   totalManualTaken: number;
   totalWithdrawTaken: number;
@@ -96,17 +100,23 @@ export default function MyStatementPage() {
     totalGiven: 0,
     totalManualGiven: 0,
     totalDepositGiven: 0,
+    totalBonusGiven: 0,
     givenCount: 0,
+    manualGivenCount: 0,
+    depositGivenCount: 0,
+    bonusGivenCount: 0,
     totalTaken: 0,
     totalManualTaken: 0,
     totalWithdrawTaken: 0,
     takenCount: 0,
+    manualTakenCount: 0,
+    withdrawTakenCount: 0,
     netDifference: 0,
   });
   const [totalFound, setTotalFound] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const [filterType, setFilterType] = useState("ALL"); // ALL | GIVEN | TAKEN | MANUAL
+  const [filterType, setFilterType] = useState("ALL"); // ALL | GIVEN | TAKEN | MANUAL | BONUS
   const [period, setPeriod] = useState("ALL"); // TODAY | YESTERDAY | 7D | 30D | ALL
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
@@ -145,6 +155,7 @@ export default function MyStatementPage() {
             totalGiven: 0,
             totalManualGiven: 0,
             totalDepositGiven: 0,
+            totalBonusGiven: 0,
             givenCount: 0,
             totalTaken: 0,
             totalManualTaken: 0,
@@ -183,15 +194,15 @@ export default function MyStatementPage() {
                   variant="outline"
                   className="border-emerald-500/40 text-emerald-300 text-[10px] font-mono"
                 >
-                  কাকে কি দিচ্ছি ও কার থেকে কি নিচ্ছি
+                  Financial Audit Trail
                 </Badge>
               </div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white flex items-center gap-2.5">
                 <FileSpreadsheet className="w-7 h-7 text-blue-400 shrink-0" />
-                <span>My Statement (মাই স্টেটমেন্ট)</span>
+                <span>My Statement</span>
               </h1>
               <p className="text-xs sm:text-sm text-gray-300 mt-1 max-w-2xl">
-                কোন ইউজারকে কত টাকা দিয়েছেন (Manual Recharge / Approved Deposit) এবং কার থেকে কত টাকা নিয়েছেন বা কেটেছেন (Manual Withdraw / Payout)—তার সম্পূর্ণ হিসাব ও রেকর্ড।
+                Complete record of all funds given to players (Deposits, Manual Recharges, Bonuses) and taken from players (Withdrawals, Manual Deductions).
               </p>
             </div>
 
@@ -203,7 +214,7 @@ export default function MyStatementPage() {
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs cursor-pointer"
                 >
                   <PlusCircle className="w-4 h-4 mr-1.5" />
-                  Give Balance (+৳ দিন)
+                  Give Balance (+৳)
                 </Button>
               </Link>
               <Button
@@ -212,7 +223,7 @@ export default function MyStatementPage() {
                 className="bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs cursor-pointer"
               >
                 <MinusCircle className="w-4 h-4 mr-1.5" />
-                Take Balance (-৳ নিন)
+                Take Balance (-৳)
               </Button>
               <Button
                 size="sm"
@@ -229,8 +240,8 @@ export default function MyStatementPage() {
           </div>
         </div>
 
-        {/* 4 Summary Cards (2 cards per row on mobile, 4 on desktop) */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Summary Cards (2 cards per row on mobile, 5 on desktop) */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           {/* Card 1: Total Deposit */}
           <Card className="bg-gray-900/90 border-emerald-500/30 shadow-md">
             <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
@@ -238,7 +249,7 @@ export default function MyStatementPage() {
                 <span className="truncate">Total Deposit</span>
                 <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
               </CardDescription>
-              <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-emerald-400 font-mono truncate">
+              <CardTitle className="text-base sm:text-xl font-extrabold text-emerald-400 font-mono truncate">
                 ৳{" "}
                 {summary.totalDepositGiven.toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
@@ -260,7 +271,7 @@ export default function MyStatementPage() {
                 <span className="truncate">Total Withdraw</span>
                 <ArrowDownLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400 shrink-0" />
               </CardDescription>
-              <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-rose-400 font-mono truncate">
+              <CardTitle className="text-base sm:text-xl font-extrabold text-rose-400 font-mono truncate">
                 ৳{" "}
                 {summary.totalWithdrawTaken.toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
@@ -282,7 +293,7 @@ export default function MyStatementPage() {
                 <span className="truncate">Total Manual Deposit</span>
                 <PlusCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
               </CardDescription>
-              <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-amber-400 font-mono truncate">
+              <CardTitle className="text-base sm:text-xl font-extrabold text-amber-400 font-mono truncate">
                 ৳{" "}
                 {summary.totalManualGiven.toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
@@ -304,7 +315,7 @@ export default function MyStatementPage() {
                 <span className="truncate">Manual Withdraw</span>
                 <MinusCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400 shrink-0" />
               </CardDescription>
-              <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-purple-400 font-mono truncate">
+              <CardTitle className="text-base sm:text-xl font-extrabold text-purple-400 font-mono truncate">
                 ৳{" "}
                 {summary.totalManualTaken.toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
@@ -315,6 +326,28 @@ export default function MyStatementPage() {
               <p className="text-[10px] sm:text-xs text-gray-400 truncate">
                 {summary.manualTakenCount ?? 0} Manual Deduct
                 {(summary.manualTakenCount ?? 0) !== 1 ? "s" : ""}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Card 5: Total Bonus */}
+          <Card className="bg-gray-900/90 border-cyan-500/30 shadow-md col-span-2 lg:col-span-1">
+            <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
+              <CardDescription className="text-[11px] sm:text-xs text-cyan-300 font-semibold flex items-center justify-between gap-1">
+                <span className="truncate">Total Bonus</span>
+                <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 shrink-0" />
+              </CardDescription>
+              <CardTitle className="text-base sm:text-xl font-extrabold text-cyan-400 font-mono truncate">
+                ৳{" "}
+                {(summary.totalBonusGiven ?? 0).toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                })}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-4 pt-0">
+              <p className="text-[10px] sm:text-xs text-gray-400 truncate">
+                {summary.bonusGivenCount ?? 0} Bonus Claim
+                {(summary.bonusGivenCount ?? 0) !== 1 ? "s" : ""}
               </p>
             </CardContent>
           </Card>
@@ -330,30 +363,36 @@ export default function MyStatementPage() {
                 setPage(1);
               }}
             >
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto gap-1 p-1">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-auto gap-1 p-1">
                 <TabsTrigger
                   value="ALL"
                   className="text-xs sm:text-sm py-1.5 px-2 truncate cursor-pointer"
                 >
-                  সব হিসাব (All)
+                  All Records
                 </TabsTrigger>
                 <TabsTrigger
                   value="GIVEN"
                   className="text-xs sm:text-sm py-1.5 px-2 truncate cursor-pointer"
                 >
-                  কাকে কি দিয়েছি (+৳)
+                  Given (+৳)
                 </TabsTrigger>
                 <TabsTrigger
                   value="TAKEN"
                   className="text-xs sm:text-sm py-1.5 px-2 truncate cursor-pointer"
                 >
-                  কার থেকে নিয়েছি (-৳)
+                  Taken (-৳)
                 </TabsTrigger>
                 <TabsTrigger
                   value="MANUAL"
                   className="text-xs sm:text-sm py-1.5 px-2 truncate cursor-pointer"
                 >
-                  শুধু ম্যানুয়াল (Manual)
+                  Manual Only
+                </TabsTrigger>
+                <TabsTrigger
+                  value="BONUS"
+                  className="text-xs sm:text-sm py-1.5 px-2 truncate cursor-pointer col-span-2 sm:col-span-1"
+                >
+                  Bonuses
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -366,7 +405,7 @@ export default function MyStatementPage() {
                 <div className="relative mt-1">
                   <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   <Input
-                    placeholder="ফোন নম্বর, প্লেয়ার আইডি বা নোট..."
+                    placeholder="Search phone, player ID, TrxID or note..."
                     value={search}
                     onChange={(e) => {
                       setSearch(e.target.value);
@@ -379,7 +418,7 @@ export default function MyStatementPage() {
 
               <div>
                 <Label className="text-xs text-gray-400">
-                  Date Range Filter (তারিখ অনুযায়ী ফিল্টার)
+                  Date Range Filter
                 </Label>
                 <div className="flex items-center gap-1.5 mt-1">
                   <Popover
@@ -444,7 +483,7 @@ export default function MyStatementPage() {
               </div>
 
               <div>
-                <Label className="text-xs text-gray-400">Quick Time Period (সময়কাল)</Label>
+                <Label className="text-xs text-gray-400">Quick Time Period</Label>
                 <Select
                   value={period}
                   onValueChange={(val) => {
@@ -457,11 +496,11 @@ export default function MyStatementPage() {
                     <SelectValue placeholder="All Time" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-900 border-gray-800">
-                    <SelectItem value="ALL">All Time (সব সময়)</SelectItem>
-                    <SelectItem value="TODAY">Today (আজকের হিসাব)</SelectItem>
-                    <SelectItem value="YESTERDAY">Yesterday (গতকাল)</SelectItem>
-                    <SelectItem value="7D">Last 7 Days (গত ৭ দিন)</SelectItem>
-                    <SelectItem value="30D">Last 30 Days (গত ৩০ দিন)</SelectItem>
+                    <SelectItem value="ALL">All Time</SelectItem>
+                    <SelectItem value="TODAY">Today</SelectItem>
+                    <SelectItem value="YESTERDAY">Yesterday</SelectItem>
+                    <SelectItem value="7D">Last 7 Days</SelectItem>
+                    <SelectItem value="30D">Last 30 Days</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -479,13 +518,13 @@ export default function MyStatementPage() {
                     Date & Time
                   </TableHead>
                   <TableHead className="text-gray-300 font-semibold">
-                    Type (দেওয়া / নেওয়া)
+                    Type
                   </TableHead>
                   <TableHead className="text-gray-300 font-semibold">
-                    User (কাকে / কার থেকে)
+                    User
                   </TableHead>
                   <TableHead className="text-gray-300 font-semibold">
-                    Amount (পরিমাণ)
+                    Amount
                   </TableHead>
                   <TableHead className="text-gray-300 font-semibold">
                     Method & Ref
@@ -504,7 +543,7 @@ export default function MyStatementPage() {
                     <TableCell colSpan={7} className="py-12 text-center">
                       <div className="flex items-center justify-center gap-2 text-gray-400">
                         <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
-                        <span>স্টেটমেন্ট লোড হচ্ছে...</span>
+                        <span>Loading statement records...</span>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -514,7 +553,7 @@ export default function MyStatementPage() {
                       colSpan={7}
                       className="py-12 text-center text-gray-500"
                     >
-                      কোনো স্টেটমেন্ট রেকর্ড পাওয়া যায়নি।
+                      No statement records found matching your filters.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -523,6 +562,7 @@ export default function MyStatementPage() {
                     const isManual =
                       rec.category === "MANUAL_ADD" ||
                       rec.category === "MANUAL_WITHDRAW";
+                    const isBonus = rec.category === "BONUS_CLAIMED";
 
                     return (
                       <TableRow
@@ -542,20 +582,29 @@ export default function MyStatementPage() {
                         {/* Direction & Category Badge */}
                         <TableCell>
                           <div className="flex flex-col gap-1 items-start">
-                            {isGiven ? (
+                            {isBonus ? (
+                              <Badge className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-[11px] whitespace-nowrap">
+                                <Gift className="w-3 h-3 mr-1" />
+                                Bonus
+                              </Badge>
+                            ) : isGiven ? (
                               <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[11px] whitespace-nowrap">
                                 <ArrowUpRight className="w-3 h-3 mr-1" />
-                                দিয়েছি (Given)
+                                Given
                               </Badge>
                             ) : (
                               <Badge className="bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[11px] whitespace-nowrap">
                                 <ArrowDownLeft className="w-3 h-3 mr-1" />
-                                নিয়েছি (Taken)
+                                Taken
                               </Badge>
                             )}
                             <span
                               className={`text-[10px] font-medium ${
-                                isManual ? "text-amber-300" : "text-gray-400"
+                                isBonus
+                                  ? "text-cyan-300"
+                                  : isManual
+                                  ? "text-amber-300"
+                                  : "text-gray-400"
                               }`}
                             >
                               {rec.categoryLabel}
@@ -580,7 +629,11 @@ export default function MyStatementPage() {
                         <TableCell className="whitespace-nowrap">
                           <span
                             className={`text-sm font-extrabold font-mono ${
-                              isGiven ? "text-emerald-400" : "text-rose-400"
+                              isBonus
+                                ? "text-cyan-400"
+                                : isGiven
+                                ? "text-emerald-400"
+                                : "text-rose-400"
                             }`}
                           >
                             {isGiven ? "+" : "-"} ৳{" "}
