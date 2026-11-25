@@ -49,6 +49,7 @@ import {
   MinusCircle,
   RefreshCw,
   Search,
+  Wallet,
   X,
 } from "lucide-react";
 
@@ -92,6 +93,7 @@ interface StatementSummary {
   manualTakenCount?: number;
   withdrawTakenCount?: number;
   netDifference: number;
+  ggrBalance?: number | null;
 }
 
 export default function MyStatementPage() {
@@ -240,8 +242,8 @@ export default function MyStatementPage() {
           </div>
         </div>
 
-        {/* Summary Cards (2 cards per row on mobile, 5 on desktop) */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+        {/* 4 Summary Cards (2 cards per row on mobile, 4 on desktop): Total Deposit, Total Withdraw, Total Bonus, GGR Balance */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* Card 1: Total Deposit */}
           <Card className="bg-gray-900/90 border-emerald-500/30 shadow-md">
             <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
@@ -249,7 +251,7 @@ export default function MyStatementPage() {
                 <span className="truncate">Total Deposit</span>
                 <ArrowUpRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
               </CardDescription>
-              <CardTitle className="text-base sm:text-xl font-extrabold text-emerald-400 font-mono truncate">
+              <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-emerald-400 font-mono truncate">
                 ৳{" "}
                 {summary.totalDepositGiven.toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
@@ -271,7 +273,7 @@ export default function MyStatementPage() {
                 <span className="truncate">Total Withdraw</span>
                 <ArrowDownLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400 shrink-0" />
               </CardDescription>
-              <CardTitle className="text-base sm:text-xl font-extrabold text-rose-400 font-mono truncate">
+              <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-rose-400 font-mono truncate">
                 ৳{" "}
                 {summary.totalWithdrawTaken.toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
@@ -286,58 +288,14 @@ export default function MyStatementPage() {
             </CardContent>
           </Card>
 
-          {/* Card 3: Total Manual Deposit */}
-          <Card className="bg-gray-900/90 border-amber-500/30 shadow-md">
-            <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
-              <CardDescription className="text-[11px] sm:text-xs text-amber-300 font-semibold flex items-center justify-between gap-1">
-                <span className="truncate">Total Manual Deposit</span>
-                <PlusCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
-              </CardDescription>
-              <CardTitle className="text-base sm:text-xl font-extrabold text-amber-400 font-mono truncate">
-                ৳{" "}
-                {summary.totalManualGiven.toLocaleString("en-IN", {
-                  minimumFractionDigits: 2,
-                })}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 sm:p-4 pt-0">
-              <p className="text-[10px] sm:text-xs text-gray-400 truncate">
-                {summary.manualGivenCount ?? 0} Manual Recharge
-                {(summary.manualGivenCount ?? 0) !== 1 ? "s" : ""}
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Card 4: Manual Withdraw */}
-          <Card className="bg-gray-900/90 border-purple-500/30 shadow-md">
-            <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
-              <CardDescription className="text-[11px] sm:text-xs text-purple-300 font-semibold flex items-center justify-between gap-1">
-                <span className="truncate">Manual Withdraw</span>
-                <MinusCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400 shrink-0" />
-              </CardDescription>
-              <CardTitle className="text-base sm:text-xl font-extrabold text-purple-400 font-mono truncate">
-                ৳{" "}
-                {summary.totalManualTaken.toLocaleString("en-IN", {
-                  minimumFractionDigits: 2,
-                })}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 sm:p-4 pt-0">
-              <p className="text-[10px] sm:text-xs text-gray-400 truncate">
-                {summary.manualTakenCount ?? 0} Manual Deduct
-                {(summary.manualTakenCount ?? 0) !== 1 ? "s" : ""}
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Card 5: Total Bonus */}
-          <Card className="bg-gray-900/90 border-cyan-500/30 shadow-md col-span-2 lg:col-span-1">
+          {/* Card 3: Total Bonus */}
+          <Card className="bg-gray-900/90 border-cyan-500/30 shadow-md">
             <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
               <CardDescription className="text-[11px] sm:text-xs text-cyan-300 font-semibold flex items-center justify-between gap-1">
                 <span className="truncate">Total Bonus</span>
                 <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 shrink-0" />
               </CardDescription>
-              <CardTitle className="text-base sm:text-xl font-extrabold text-cyan-400 font-mono truncate">
+              <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-cyan-400 font-mono truncate">
                 ৳{" "}
                 {(summary.totalBonusGiven ?? 0).toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
@@ -348,6 +306,28 @@ export default function MyStatementPage() {
               <p className="text-[10px] sm:text-xs text-gray-400 truncate">
                 {summary.bonusGivenCount ?? 0} Bonus Claim
                 {(summary.bonusGivenCount ?? 0) !== 1 ? "s" : ""}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Card 4: GGR Balance */}
+          <Card className="bg-gray-900/90 border-amber-500/30 shadow-md">
+            <CardHeader className="p-3 sm:p-4 pb-1 sm:pb-2">
+              <CardDescription className="text-[11px] sm:text-xs text-amber-300 font-semibold flex items-center justify-between gap-1">
+                <span className="truncate">GGR Balance</span>
+                <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
+              </CardDescription>
+              <CardTitle className="text-base sm:text-xl md:text-2xl font-extrabold text-amber-400 font-mono truncate">
+                {summary.ggrBalance !== null && summary.ggrBalance !== undefined
+                  ? `৳ ${summary.ggrBalance.toLocaleString("en-IN", {
+                      minimumFractionDigits: 2,
+                    })}`
+                  : "—"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 sm:p-4 pt-0">
+              <p className="text-[10px] sm:text-xs text-gray-400 truncate">
+                Live Casino GGR Wallet
               </p>
             </CardContent>
           </Card>

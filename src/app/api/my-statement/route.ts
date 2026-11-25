@@ -1,9 +1,28 @@
 import { auth } from "@/auth";
 import { INTERNAL_SERVER_ERROR } from "@/error";
 import { db } from "@/lib/db";
+import { getSoftApiConfig } from "@/lib/softapi";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+
+async function fetchLiveGgrBalance(): Promise<number | null> {
+  try {
+    const config = getSoftApiConfig();
+    if (!config.token) return null;
+    const res = await fetch(
+      `${config.baseUrl}/ggr-balance?token=${encodeURIComponent(config.token)}`,
+      { cache: "no-store", signal: AbortSignal.timeout(8000) }
+    );
+    const data = await res.json();
+    if (Number(data?.code) === 0 && data?.data?.wallet !== undefined) {
+      return Number(data.data.wallet);
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
 
 export interface StatementRecord {
   id: string;
@@ -177,8 +196,8 @@ export async function GET(req: NextRequest) {
       take: 1000,
     });
 
-    // 4. Fetch Claimed Invitation/Referral Milestone Rewards & Lucky Wheel Spins
-    const [claimedInviteRewards, luckyWheelSpins] = await Promise.all([
+    // 4. Fetch Claimed Invitation/Referral Milestone Rewards, Lucky Wheel Spins & Live GGR Balance
+    const [claimedInviteRewards, luckyWheelSpins, liveGgrBalance] = await Promise.all([
       db.claimedInvitationReward
         .findMany({
           where: {
@@ -227,6 +246,7 @@ export async function GET(req: NextRequest) {
           take: 1000,
         })
         .catch(() => []),
+      fetchLiveGgrBalance(),
     ]);
 
     const paymentWallets = await db.paymentWallet.findMany();
@@ -562,6 +582,7 @@ export async function GET(req: NextRequest) {
         manualTakenCount,
         withdrawTakenCount,
         netDifference: Number((totalGiven - totalTaken).toFixed(2)),
+        ggrBalance: liveGgrBalance !== null ? Number(liveGgrBalance.toFixed(2)) : null,
       },
       records: paginated,
       totalFound,
