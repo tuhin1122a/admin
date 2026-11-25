@@ -91,12 +91,15 @@ export function UserSearch({
           <Button
             variant="outline"
             role="combobox"
-            className="w-full justify-between"
+            className="w-full min-w-0 max-w-full justify-between overflow-hidden"
           >
-            Search users by phone or player ID...
+            <span className="truncate">Search users by phone or player ID...</span>
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[400px] p-0">
+        <PopoverContent
+          align="start"
+          className="w-[calc(100vw-3rem)] sm:w-[400px] max-w-[400px] p-0"
+        >
           <Command shouldFilter={false}>
             <CommandInput
               placeholder="Search by phone or player ID..."

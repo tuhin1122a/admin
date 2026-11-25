@@ -403,21 +403,22 @@ const BankingContent = () => {
             <TabsList className="grid w-full grid-cols-3 mb-8">
               <TabsTrigger
                 value="e-wallet"
-                className="!rounded-button cursor-pointer whitespace-nowrap"
+                className="!rounded-button cursor-pointer truncate text-xs sm:text-sm px-1.5 sm:px-3"
               >
                 E-Wallet
               </TabsTrigger>
               <TabsTrigger
                 value="card-crypto"
-                className="!rounded-button cursor-pointer whitespace-nowrap"
+                className="!rounded-button cursor-pointer truncate text-xs sm:text-sm px-1.5 sm:px-3"
               >
                 Card & Crypto
               </TabsTrigger>
               <TabsTrigger
                 value="payment-methods"
-                className="!rounded-button cursor-pointer whitespace-nowrap"
+                className="!rounded-button cursor-pointer truncate text-xs sm:text-sm px-1.5 sm:px-3"
               >
-                Payment Methods
+                <span className="sm:hidden">Methods</span>
+                <span className="hidden sm:inline">Payment Methods</span>
               </TabsTrigger>
             </TabsList>
             <TabsContent value="e-wallet">

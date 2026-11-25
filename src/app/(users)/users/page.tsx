@@ -43,7 +43,11 @@ const Users: React.FC = () => {
   const [selectedUserForWithdraw, setSelectedUserForWithdraw] = useState<any>(null);
 
   const handleChangeFilterValues = (name: string, value: any) => {
-    setFilter((state) => ({ ...state, [name]: value, page: 1 }));
+    setFilter((state) => ({
+      ...state,
+      [name]: value,
+      page: name === "page" ? Number(value) : 1,
+    }));
   };
 
   const renderStatusBadge = (isBanned: boolean) => {
@@ -307,15 +311,16 @@ const Users: React.FC = () => {
         <div className="px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-400">
           <div>
             Showing <span className="font-semibold text-white">{users?.length || 0}</span> of{" "}
-            <span className="font-semibold text-white">{totalFound || 0}</span> users
+            <span className="font-semibold text-white">{totalFound || 0}</span> users (Page {filter.page} of{" "}
+            {Math.max(1, Math.ceil((totalFound || 0) / filter.limit))})
           </div>
           <div className="flex space-x-2">
             <Button
               variant="outline"
               size="sm"
-              disabled={users?.length === 0 || filter.page === 1}
+              disabled={filter.page <= 1}
               onClick={() => {
-                handleChangeFilterValues("page", filter.page - 1);
+                handleChangeFilterValues("page", Math.max(1, filter.page - 1));
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
               className="border-gray-700 bg-gray-900 text-white cursor-pointer"
@@ -326,7 +331,7 @@ const Users: React.FC = () => {
               variant="outline"
               size="sm"
               disabled={
-                users?.length === 0 ||
+                !totalFound ||
                 Math.ceil((totalFound || 0) / filter.limit) <= filter.page
               }
               onClick={() => {

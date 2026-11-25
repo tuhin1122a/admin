@@ -104,7 +104,11 @@ const Withdraws: React.FC = () => {
   };
 
   const handleChangeFilterValues = useCallback((name: string, value: any) => {
-    setFilter((state) => ({ ...state, [name]: value }));
+    setFilter((state) => ({
+      ...state,
+      [name]: value,
+      page: name === "page" ? Number(value) : 1,
+    }));
   }, []);
 
   const [activeTab, setActiveTab] = useState("recent");
@@ -155,7 +159,7 @@ const Withdraws: React.FC = () => {
   useEffect(() => {
     if (activeTab == "recent" && filter.status !== "ALL") {
       handleChangeFilterValues("status", "ALL");
-    } else if (activeTab == "approved" && filter.status !== "ARROVED") {
+    } else if (activeTab == "approved" && filter.status !== "APPROVED") {
       handleChangeFilterValues("status", "APPROVED");
     } else if (activeTab == "rejected" && filter.status !== "REJECTED") {
       handleChangeFilterValues("status", "REJECTED");
@@ -222,21 +226,23 @@ const Withdraws: React.FC = () => {
             </TableBody>
           </Table>
         </div>
-        <div className="px-6 py-4 flex items-center justify-between ">
+        <div className="px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-sm text-gray-500">
             Showing{" "}
             <span className="font-medium">{withdraws?.length || 0}</span> of{" "}
-            <span className="font-medium">{totalFound}</span> withdraws
+            <span className="font-medium">{totalFound || 0}</span> withdraws
+            (Page {filter.page} of{" "}
+            {Math.max(1, Math.ceil((totalFound || 0) / filter.limit))})
           </div>
           <div className="flex space-x-2">
             <Button
               variant="outline"
               size="sm"
-              disabled={withdraws?.length == 0 || filter.page == 1}
+              disabled={filter.page <= 1}
               onClick={() => {
                 setIsModalOpen(false);
                 setSelectedWithdraw(null);
-                handleChangeFilterValues("page", filter.page - 1);
+                handleChangeFilterValues("page", Math.max(1, filter.page - 1));
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
               className="!rounded-button whitespace-nowrap cursor-pointer"
@@ -247,8 +253,8 @@ const Withdraws: React.FC = () => {
               variant="outline"
               size="sm"
               disabled={
-                withdraws?.length == 0 ||
-                Math.ceil(totalFound! / filter.limit) == filter.page
+                !totalFound ||
+                Math.ceil(totalFound / filter.limit) <= filter.page
               }
               onClick={() => {
                 setIsModalOpen(false);
@@ -302,21 +308,24 @@ const Withdraws: React.FC = () => {
                   <TabsList className="grid w-full grid-cols-3 mb-6">
                     <TabsTrigger
                       value="recent"
-                      className="!rounded-button whitespace-nowrap cursor-pointer"
+                      className="!rounded-button truncate cursor-pointer text-xs sm:text-sm px-1.5 sm:px-3"
                     >
-                      Recent Withdraws
+                      <span className="sm:hidden">Recent</span>
+                      <span className="hidden sm:inline">Recent Withdraws</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="approved"
-                      className="!rounded-button whitespace-nowrap cursor-pointer"
+                      className="!rounded-button truncate cursor-pointer text-xs sm:text-sm px-1.5 sm:px-3"
                     >
-                      Approved Withdraws
+                      <span className="sm:hidden">Approved</span>
+                      <span className="hidden sm:inline">Approved Withdraws</span>
                     </TabsTrigger>
                     <TabsTrigger
                       value="rejected"
-                      className="!rounded-button whitespace-nowrap cursor-pointer"
+                      className="!rounded-button truncate cursor-pointer text-xs sm:text-sm px-1.5 sm:px-3"
                     >
-                      Rejected Withdraws
+                      <span className="sm:hidden">Rejected</span>
+                      <span className="hidden sm:inline">Rejected Withdraws</span>
                     </TabsTrigger>
                   </TabsList>
                 </div>
