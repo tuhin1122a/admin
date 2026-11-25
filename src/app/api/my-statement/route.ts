@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
         ? { subAdminId: currentAdminId }
         : {};
 
-    // 1. Fetch manual balance additions, manual withdrawals & bonus notifications
+    // 1. Fetch manual balance additions, manual withdrawals & ALL bonus notifications
     const manualAndBonusNotifications = await db.notification.findMany({
       where: {
         ...(createdAtFilter && { createdAt: createdAtFilter }),
@@ -136,6 +136,8 @@ export async function GET(req: NextRequest) {
           { title: { startsWith: "Daily Check-in" } },
           { title: { startsWith: "Mission Reward" } },
           { title: { contains: "App Download" } },
+          { title: "Referral Bonus Transfer" },
+          { icon: "BONUS" },
         ],
       },
       include: {
@@ -149,7 +151,7 @@ export async function GET(req: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 1000,
+      take: 1500,
     });
 
     // 2. Fetch Approved Deposits (money given to users)
@@ -319,10 +321,46 @@ export async function GET(req: NextRequest) {
           createdAt: notif.createdAt.toISOString(),
         });
       } else if (
+        mType === "REFERRAL_COMMISSION_CLAIM" ||
+        notif.title === "Referral Bonus Transfer"
+      ) {
+        let amt = Number(meta.amount ?? 0);
+        if (!amt || isNaN(amt)) {
+          const match = (notif.description || "").match(/৳\s*([0-9]+(\.[0-9]+)?)/);
+          if (match) amt = parseFloat(match[1]);
+        }
+        if (amt <= 0) continue;
+
+        const dep5 = Number(meta.depositBonus5Percent ?? 0);
+        const loss10 = Number(meta.lossBonus10Percent ?? 0);
+
+        records.push({
+          id: `bonus-refcomm-${notif.id}`,
+          direction: "GIVEN",
+          category: "BONUS_CLAIMED",
+          categoryLabel: "Referral Commission & Cashback",
+          amount: amt,
+          user: {
+            id: notif.user?.id || notif.userId,
+            phone: notif.user?.phone || "N/A",
+            playerId: notif.user?.playerId || "N/A",
+            name: notif.user?.name || "Player",
+          },
+          method: "Referral Commission (5% Dep + 10% Loss Cashback)",
+          reference: "REF-COMMISSION",
+          note:
+            dep5 > 0 || loss10 > 0
+              ? `Referral commission transferred: ৳${amt.toFixed(2)} (5% Deposit: ৳${dep5.toFixed(2)}, 10% Loss Cashback: ৳${loss10.toFixed(2)})`
+              : `Referral commission transferred to main wallet: ৳${amt.toFixed(2)}`,
+          adminName: "System Bonus",
+          createdAt: notif.createdAt.toISOString(),
+        });
+      } else if (
         mType === "SIGNIN_CLAIM" ||
         notif.title?.startsWith("Daily Check-in") ||
         mType === "MISSION_CLAIM" ||
         notif.title?.startsWith("Mission Reward") ||
+        mType === "APP_DOWNLOAD_BONUS" ||
         notif.title?.includes("App Download")
       ) {
         let amt = Number(meta.prize ?? meta.rewardAmount ?? meta.amount ?? 0);
@@ -334,9 +372,10 @@ export async function GET(req: NextRequest) {
 
         const isMission =
           mType === "MISSION_CLAIM" || notif.title?.startsWith("Mission Reward");
-        const isAppBonus = notif.title?.includes("App Download");
+        const isAppBonus =
+          mType === "APP_DOWNLOAD_BONUS" || notif.title?.includes("App Download");
         const bonusSource = isMission
-          ? "Mission Reward"
+          ? "Mission & Cashback Bonus"
           : isAppBonus
           ? "App Download Bonus"
           : "Daily Check-in Bonus";
@@ -504,6 +543,16 @@ export async function GET(req: NextRequest) {
     let depositGivenCount = 0;
     let bonusGivenCount = 0;
 
+    // Granular bonus breakdown by category
+    const bonusBreakdown = {
+      depositBonus: 0,
+      dailyCheckinBonus: 0,
+      referralBonus: 0,
+      missionCashbackBonus: 0,
+      luckyWheelBonus: 0,
+      appDownloadBonus: 0,
+    };
+
     let totalTaken = 0;
     let totalManualTaken = 0;
     let totalWithdrawTaken = 0;
@@ -521,6 +570,22 @@ export async function GET(req: NextRequest) {
         } else if (r.category === "BONUS_CLAIMED") {
           totalBonusGiven += r.amount;
           bonusGivenCount++;
+          if (r.categoryLabel === "Deposit Bonus") {
+            bonusBreakdown.depositBonus += r.amount;
+          } else if (r.categoryLabel === "Daily Check-in Bonus") {
+            bonusBreakdown.dailyCheckinBonus += r.amount;
+          } else if (
+            r.categoryLabel === "Referral Milestone Bonus" ||
+            r.categoryLabel === "Referral Commission & Cashback"
+          ) {
+            bonusBreakdown.referralBonus += r.amount;
+          } else if (r.categoryLabel === "Mission & Cashback Bonus") {
+            bonusBreakdown.missionCashbackBonus += r.amount;
+          } else if (r.categoryLabel === "Lucky Wheel Bonus") {
+            bonusBreakdown.luckyWheelBonus += r.amount;
+          } else if (r.categoryLabel === "App Download Bonus") {
+            bonusBreakdown.appDownloadBonus += r.amount;
+          }
         } else {
           totalDepositGiven += r.amount;
           depositGivenCount++;
@@ -583,6 +648,14 @@ export async function GET(req: NextRequest) {
         withdrawTakenCount,
         netDifference: Number((totalGiven - totalTaken).toFixed(2)),
         ggrBalance: liveGgrBalance !== null ? Number(liveGgrBalance.toFixed(2)) : null,
+        bonusBreakdown: {
+          depositBonus: Number(bonusBreakdown.depositBonus.toFixed(2)),
+          dailyCheckinBonus: Number(bonusBreakdown.dailyCheckinBonus.toFixed(2)),
+          referralBonus: Number(bonusBreakdown.referralBonus.toFixed(2)),
+          missionCashbackBonus: Number(bonusBreakdown.missionCashbackBonus.toFixed(2)),
+          luckyWheelBonus: Number(bonusBreakdown.luckyWheelBonus.toFixed(2)),
+          appDownloadBonus: Number(bonusBreakdown.appDownloadBonus.toFixed(2)),
+        },
       },
       records: paginated,
       totalFound,

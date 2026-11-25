@@ -228,11 +228,15 @@ export const PUT = async (req: Request) => {
             },
           });
 
+          const totalCreditAmount = new Prisma.Decimal(
+            (Number(deposit.amount || 0) + Number(deposit.bonus || 0)).toFixed(2)
+          );
+
           await tx.wallet.update({
             where: { userId: deposit.user.id },
             data: {
-              balance: { increment: deposit.amount },
-              turnOver: { increment: deposit.amount },
+              balance: { increment: totalCreditAmount },
+              turnOver: { increment: totalCreditAmount },
               signinBonus: false,
             },
           });

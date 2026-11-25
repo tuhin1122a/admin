@@ -94,6 +94,14 @@ interface StatementSummary {
   withdrawTakenCount?: number;
   netDifference: number;
   ggrBalance?: number | null;
+  bonusBreakdown?: {
+    depositBonus: number;
+    dailyCheckinBonus: number;
+    referralBonus: number;
+    missionCashbackBonus: number;
+    luckyWheelBonus: number;
+    appDownloadBonus: number;
+  };
 }
 
 export default function MyStatementPage() {
@@ -332,6 +340,64 @@ export default function MyStatementPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* All Bonus Categories Breakdown Bar */}
+        {summary.bonusBreakdown && (
+          <Card className="bg-gray-900/70 border-cyan-500/20">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="text-xs font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Gift className="w-3.5 h-3.5 text-cyan-400" />
+                  All Bonus Categories Breakdown
+                </span>
+                <span className="text-xs font-mono text-gray-400">
+                  Total:{" "}
+                  <strong className="text-cyan-400">
+                    ৳ {(summary.totalBonusGiven ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </strong>
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                <div className="rounded-lg bg-gray-950/80 border border-gray-800 p-2.5">
+                  <div className="text-[10px] text-gray-400 truncate">Deposit Bonus</div>
+                  <div className="text-xs sm:text-sm font-bold text-white font-mono mt-0.5">
+                    ৳ {summary.bonusBreakdown.depositBonus.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-gray-950/80 border border-gray-800 p-2.5">
+                  <div className="text-[10px] text-gray-400 truncate">Daily Check-in</div>
+                  <div className="text-xs sm:text-sm font-bold text-white font-mono mt-0.5">
+                    ৳ {summary.bonusBreakdown.dailyCheckinBonus.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-gray-950/80 border border-gray-800 p-2.5">
+                  <div className="text-[10px] text-gray-400 truncate">Refer & Commission</div>
+                  <div className="text-xs sm:text-sm font-bold text-white font-mono mt-0.5">
+                    ৳ {summary.bonusBreakdown.referralBonus.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-gray-950/80 border border-gray-800 p-2.5">
+                  <div className="text-[10px] text-gray-400 truncate">Mission & Cashback</div>
+                  <div className="text-xs sm:text-sm font-bold text-white font-mono mt-0.5">
+                    ৳ {summary.bonusBreakdown.missionCashbackBonus.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-gray-950/80 border border-gray-800 p-2.5">
+                  <div className="text-[10px] text-gray-400 truncate">Lucky Wheel Spin</div>
+                  <div className="text-xs sm:text-sm font-bold text-white font-mono mt-0.5">
+                    ৳ {summary.bonusBreakdown.luckyWheelBonus.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-gray-950/80 border border-gray-800 p-2.5">
+                  <div className="text-[10px] text-gray-400 truncate">App Download</div>
+                  <div className="text-xs sm:text-sm font-bold text-white font-mono mt-0.5">
+                    ৳ {summary.bonusBreakdown.appDownloadBonus.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tabs & Filters */}
         <Card className="bg-gray-900/80 border-gray-800">
