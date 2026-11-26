@@ -5,7 +5,7 @@ import path from "path";
 
 export const dynamic = "force-dynamic";
 
-const APK_FILENAME = "RK444-Agent-Pay-v1.0.2.apk";
+const APK_FILENAME = "SMS-Reader-v1.0.3.apk";
 
 /**
  * Mother Admin ONLY download endpoint for RK444 Agent Pay APK.

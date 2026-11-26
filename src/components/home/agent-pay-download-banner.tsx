@@ -15,10 +15,10 @@ export default function AgentPayDownloadBanner() {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <h3 className="text-sm sm:text-base font-bold text-white truncate">
-                RK444 Agent Pay — SMS Auto-Deposit App
+                SMS Reader — Auto-Deposit &amp; Withdraw App
               </h3>
               <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white font-mono text-[10px] sm:text-xs">
-                v1.0.2
+                v1.0.3
               </Badge>
               <Badge
                 variant="outline"
@@ -36,12 +36,12 @@ export default function AgentPayDownloadBanner() {
         <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
           <a
             href="/api/agent-pay-apk"
-            download="RK444-Agent-Pay-v1.0.2.apk"
+            download="SMS-Reader-v1.0.3.apk"
             className="w-full sm:w-auto"
           >
             <Button className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-4 py-2 cursor-pointer h-8 sm:h-9">
               <i className="fa-solid fa-download mr-1.5 sm:mr-2"></i>
-              Download Agent Pay APK
+              Download SMS Reader APK
             </Button>
           </a>
         </div>
