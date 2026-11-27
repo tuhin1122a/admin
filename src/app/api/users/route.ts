@@ -271,15 +271,14 @@ export async function GET(req: NextRequest) {
         (userWinSumFromHistoryMap.get(uid) ?? 0) + wAmt
       );
 
-      // GGR is deducted on net loss rounds (when betAmount > winAmount)
-      if (bAmt > wAmt) {
-        const lossAmt = bAmt - wAmt;
-        const rate = getCategoryGgrRate(bet.category, bet.gameUid, bet.provider);
-        userGgrFromBetsMap.set(
-          uid,
-          (userGgrFromBetsMap.get(uid) ?? 0) + lossAmt * rate
-        );
-      }
+      // Net GGR accounting: include BOTH losing and winning rounds ((betAmount - winAmount) * rate)
+      // If a user wins 20,000 from 20 BDT and then loses 20,000 back, net loss is 20 BDT (not 20,000!)
+      const netRoundLoss = bAmt - wAmt;
+      const rate = getCategoryGgrRate(bet.category, bet.gameUid, bet.provider);
+      userGgrFromBetsMap.set(
+        uid,
+        (userGgrFromBetsMap.get(uid) ?? 0) + netRoundLoss * rate
+      );
     }
 
     const nowMs = Date.now();
@@ -302,14 +301,15 @@ export async function GET(req: NextRequest) {
       const winRate =
         totalBet > 0 ? Number(((totalWin / totalBet) * 100).toFixed(2)) : 0;
 
-      // Net amount the player lost in games
+      // Net amount the player actually lost in games (Total Bet - Total Win)
+      // Example: 20 BDT bonus -> wins 20,000 -> loses 20,000 -> Net Loss is only 20 BDT
       const playerNetLoss = Number(Math.max(0, totalBet - totalWin).toFixed(2));
 
-      // Exact GGR deducted from SoftAPI GGR wallet by this user
-      const ggrFromHistory = userGgrFromBetsMap.get(user.id) ?? 0;
+      // Exact GGR deducted based on net loss (never inflated by intermediate wins that were lost back)
+      const netGgrFromHistory = Math.max(0, userGgrFromBetsMap.get(user.id) ?? 0);
       const fallbackGgr = playerNetLoss * 0.06;
       const ggrDeducted = Number(
-        Math.max(ggrFromHistory, fallbackGgr).toFixed(2)
+        (historyBet > 0 ? netGgrFromHistory : fallbackGgr).toFixed(2)
       );
 
       const totalDeposit = depositMap.get(user.id) ?? 0;
