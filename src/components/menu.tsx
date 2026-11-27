@@ -282,6 +282,12 @@ const getNavItems = (isSubAdmin: boolean) => {
       icon: IoMdCode,
     },
     {
+      label: "9xBaji GGR Control",
+      link: "/9xbaji-ggr",
+      isActive: false,
+      icon: FaCoins,
+    },
+    {
       label: "SoftAPI Response Logs",
       link: "/softapi-logs",
       isActive: false,
