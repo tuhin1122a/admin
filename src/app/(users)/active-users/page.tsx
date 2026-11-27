@@ -39,8 +39,11 @@ import {
   Activity,
   Flame,
   Gamepad2,
+  Globe,
+  MapPin,
   RefreshCw,
   Search,
+  Smartphone,
   TrendingDown,
   Users,
 } from "lucide-react";
@@ -67,6 +70,53 @@ export default function ActiveUsersPage() {
       [name]: value,
       page: name === "page" ? Number(value) : 1,
     }));
+  };
+
+  const renderPlatformAndLocation = (gameStatus?: {
+    platform?: string;
+    device?: string;
+    ip?: string;
+    location?: string;
+    isp?: string;
+  }) => {
+    const isApp = gameStatus?.platform === "app";
+    const deviceLabel =
+      gameStatus?.device || (isApp ? "Android APK" : "Web Browser");
+    const locationLabel = gameStatus?.location || "Bangladesh";
+    const ipLabel = gameStatus?.ip;
+
+    return (
+      <div className="flex flex-col space-y-1">
+        <div className="flex items-center gap-1.5">
+          {isApp ? (
+            <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] px-1.5 py-0 font-semibold flex items-center gap-1">
+              <Smartphone className="w-3 h-3 text-purple-400" />
+              APP ({deviceLabel})
+            </Badge>
+          ) : (
+            <Badge className="bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[10px] px-1.5 py-0 font-semibold flex items-center gap-1">
+              <Globe className="w-3 h-3 text-blue-400" />
+              WEB ({deviceLabel})
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-1 text-[11px] text-emerald-300 font-medium">
+          <MapPin className="w-3 h-3 text-emerald-400 shrink-0" />
+          <span className="truncate max-w-[155px]" title={locationLabel}>
+            {locationLabel}
+          </span>
+        </div>
+        {ipLabel && (
+          <span
+            className="text-[10px] text-gray-400 font-mono truncate max-w-[155px]"
+            title={gameStatus?.isp ? `${ipLabel} (${gameStatus.isp})` : ipLabel}
+          >
+            IP: {ipLabel}
+            {gameStatus?.isp ? ` • ${gameStatus.isp}` : ""}
+          </span>
+        )}
+      </div>
+    );
   };
 
   const renderGameStatus = (gameStatus?: {
@@ -225,7 +275,14 @@ export default function ActiveUsersPage() {
             </CardHeader>
             <CardContent className="p-3 sm:p-4 pt-0">
               <p className="text-[10px] sm:text-xs text-gray-400 truncate">
-                {summary?.onlineNowCount ?? 0} Online in last 30m
+                {summary?.onlineNowCount ?? 0} Online • App:{" "}
+                <strong className="text-purple-300">
+                  {summary?.appActiveCount ?? 0}
+                </strong>{" "}
+                | Web:{" "}
+                <strong className="text-blue-300">
+                  {summary?.webActiveCount ?? 0}
+                </strong>
               </p>
             </CardContent>
           </Card>
@@ -365,6 +422,9 @@ export default function ActiveUsersPage() {
                       Live Status &amp; Game
                     </TableHead>
                     <TableHead className="font-semibold text-gray-300">
+                      Platform &amp; Location
+                    </TableHead>
+                    <TableHead className="font-semibold text-gray-300">
                       Wallet Balance
                     </TableHead>
                     <TableHead className="font-semibold text-gray-300">
@@ -421,6 +481,11 @@ export default function ActiveUsersPage() {
 
                         {/* Live Status */}
                         <TableCell>{renderGameStatus(user.gameStatus)}</TableCell>
+
+                        {/* Platform (App/Web) & Location */}
+                        <TableCell>
+                          {renderPlatformAndLocation(user.gameStatus)}
+                        </TableCell>
 
                         {/* Current Balance */}
                         <TableCell>
@@ -511,7 +576,7 @@ export default function ActiveUsersPage() {
                   {users.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={8}
+                        colSpan={9}
                         className="text-center py-10 text-gray-500"
                       >
                         No active users found matching this filter.

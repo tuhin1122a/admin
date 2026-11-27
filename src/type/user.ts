@@ -45,7 +45,11 @@ export interface UserTableItem {
   gameStatus: {
     isPlaying: boolean;
     isOnline?: boolean;
-    platform?: string;
+    platform?: "app" | "web" | string;
+    device?: string;
+    ip?: string;
+    location?: string;
+    isp?: string;
     lastGameName?: string;
     lastActiveAt?: string;
   };
@@ -65,6 +69,8 @@ export interface UsersFetchOutput {
     livePlayingCount: number;
     onlineNowCount: number;
     activeTodayCount: number;
+    appActiveCount?: number;
+    webActiveCount?: number;
     totalPlayerNetLoss: number;
     totalGgrDeducted: number;
   };
@@ -144,6 +150,17 @@ export interface FetchUserOutput {
   bonusBreakdown?: BonusBreakdown;
   balanceAudit?: BalanceAudit;
   gameSessions?: GameSessionItem[];
+  gameStatus?: {
+    isPlaying: boolean;
+    isOnline?: boolean;
+    platform?: "app" | "web" | string;
+    device?: string;
+    ip?: string;
+    location?: string;
+    isp?: string;
+    lastGameName?: string;
+    lastActiveAt?: string;
+  };
   latestTransactions: any[];
   betHistory?: BetHistoryItem[];
 }

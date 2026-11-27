@@ -272,7 +272,111 @@ export const GET = async (
       });
     }
 
-    // 8. Fetch GameSessions (Safely guarded against missing table on VPS!)
+    // 8. Fetch GameSessions (Safely guarded against missing table on VPS!) + Live Active Session / Device / Location
+    const [activeSessRow, regDeviceRow] = await Promise.all([
+      db.siteConfig
+        .findUnique({ where: { key: `active_session:${user.id}` } })
+        .catch(() => null),
+      db.siteConfig
+        .findUnique({ where: { key: `USER_REG_DEVICE_${user.id}` } })
+        .catch(() => null),
+    ]);
+
+    let activeSessData: any = null;
+    let regDeviceData: any = null;
+    try {
+      if (activeSessRow?.value) activeSessData = JSON.parse(activeSessRow.value);
+    } catch {}
+    try {
+      if (regDeviceRow?.value) regDeviceData = JSON.parse(regDeviceRow.value);
+    } catch {}
+
+    const rawIp = String(activeSessData?.ip || regDeviceData?.ip || "").replace(
+      /^::ffff:/,
+      ""
+    );
+    let resolvedLocation = activeSessData?.location || undefined;
+    let resolvedIsp = activeSessData?.isp || undefined;
+
+    if (
+      rawIp &&
+      !resolvedLocation &&
+      rawIp !== "unknown" &&
+      rawIp !== "127.0.0.1" &&
+      !rawIp.startsWith("192.168.") &&
+      !rawIp.startsWith("10.")
+    ) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 1800);
+        const geoRes = await fetch(
+          `http://ip-api.com/json/${encodeURIComponent(rawIp)}?fields=status,country,regionName,city,isp`,
+          { signal: controller.signal }
+        );
+        clearTimeout(timer);
+        if (geoRes.ok) {
+          const geoJson = await geoRes.json();
+          if (geoJson?.status === "success") {
+            const city = geoJson.city || geoJson.regionName || "";
+            const country = geoJson.country || "";
+            resolvedLocation =
+              [city, country].filter(Boolean).join(", ") || country || undefined;
+            resolvedIsp = geoJson.isp || undefined;
+          }
+        }
+      } catch {}
+    }
+
+    const latestBetRow = dbBets[0];
+    const betTimeMs = latestBetRow
+      ? new Date(latestBetRow.createdAt).getTime()
+      : 0;
+    const sessTimeMs = Number(activeSessData?.updatedAt ?? 0);
+    const latestActivityMs = Math.max(betTimeMs, sessTimeMs);
+    const nowMs = Date.now();
+    const isPlaying = betTimeMs >= nowMs - 15 * 60 * 1000;
+    const isOnline =
+      isPlaying ||
+      sessTimeMs >= nowMs - 30 * 60 * 1000 ||
+      betTimeMs >= nowMs - 30 * 60 * 1000;
+
+    const ua = String(
+      activeSessData?.userAgent || regDeviceData?.userAgent || ""
+    ).toLowerCase();
+    const platform =
+      activeSessData?.platform ||
+      (ua && /okhttp|dart|reactnative|capacitor|wv\)/i.test(ua) ? "app" : "web");
+    const device =
+      activeSessData?.device ||
+      (platform === "app"
+        ? ua.includes("iphone") || ua.includes("ios")
+          ? "iOS App"
+          : "Android APK"
+        : ua.includes("android")
+        ? "Android Web"
+        : ua.includes("iphone") || ua.includes("ipad")
+        ? "iPhone Web"
+        : ua.includes("windows")
+        ? "Windows PC"
+        : "Web Browser");
+
+    const gameStatus = {
+      isPlaying,
+      isOnline,
+      platform,
+      device,
+      ip: rawIp || undefined,
+      location: resolvedLocation,
+      isp: resolvedIsp,
+      lastGameName: latestBetRow
+        ? latestBetRow.gameName || `Game #${latestBetRow.gameUid}`
+        : undefined,
+      lastActiveAt:
+        latestActivityMs > 0
+          ? new Date(latestActivityMs).toISOString()
+          : undefined,
+    };
+
     let rawSessions: any[] = [];
     try {
       if ((db as any).gameSession) {
@@ -323,6 +427,7 @@ export const GET = async (
       bonusBreakdown,
       balanceAudit,
       gameSessions,
+      gameStatus,
       latestTransactions,
       betHistory,
     });

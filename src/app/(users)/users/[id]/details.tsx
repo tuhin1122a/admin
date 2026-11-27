@@ -62,6 +62,7 @@ const Details = ({ userId }: { userId: string }) => {
   const bonusBreakdown = data?.bonusBreakdown;
   const balanceAudit = data?.balanceAudit;
   const gameSessions = data?.gameSessions;
+  const gameStatus = data?.gameStatus;
   const [betFilter, setBetFilter] = useState<"ALL" | "WIN" | "LOSS">("ALL");
 
   const [selectedSession, setSelectedSession] = useState<GameSessionItem | null>(null);
@@ -438,6 +439,35 @@ const Details = ({ userId }: { userId: string }) => {
                       {+user!.wallet!.balance}
                     </span>
                   </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#9CA3AF]">Active Platform:</span>
+                    <Badge
+                      className={
+                        gameStatus?.platform === "app"
+                          ? "bg-purple-500/20 text-purple-300 border border-purple-500/40 text-xs"
+                          : "bg-blue-500/20 text-blue-300 border border-blue-500/40 text-xs"
+                      }
+                    >
+                      {gameStatus?.platform === "app"
+                        ? `APP (${gameStatus?.device || "Android APK"})`
+                        : `WEB (${gameStatus?.device || "Web Browser"})`}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#9CA3AF]">Location:</span>
+                    <span className="text-sm font-medium text-emerald-400">
+                      {gameStatus?.location || "Bangladesh"}
+                    </span>
+                  </div>
+                  {gameStatus?.ip && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#9CA3AF]">Last IP / ISP:</span>
+                      <span className="text-xs font-mono text-gray-300">
+                        {gameStatus.ip}
+                        {gameStatus.isp ? ` (${gameStatus.isp})` : ""}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center py-1">
                     <span className="text-[#9CA3AF]">First Deposit Bonus:</span>
                     <div className="flex items-center gap-1.5">

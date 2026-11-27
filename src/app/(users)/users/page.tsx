@@ -69,12 +69,38 @@ const Users: React.FC = () => {
     isPlaying: boolean;
     isOnline?: boolean;
     platform?: string;
+    device?: string;
+    ip?: string;
+    location?: string;
+    isp?: string;
     lastGameName?: string;
     lastActiveAt?: string;
   }) => {
     if (!gameStatus) {
       return <span className="text-xs text-gray-500">Offline</span>;
     }
+
+    const isApp = gameStatus.platform === "app";
+    const platformBadge = isApp ? (
+      <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[9px] px-1.5 py-0 font-semibold">
+        APP
+      </Badge>
+    ) : (
+      <Badge className="bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[9px] px-1.5 py-0 font-semibold">
+        WEB
+      </Badge>
+    );
+
+    const locationLine = (gameStatus.location || gameStatus.ip) && (
+      <span
+        className="text-[10px] text-emerald-300/90 mt-0.5 truncate max-w-[140px]"
+        title={`${gameStatus.location || ""}${
+          gameStatus.ip ? ` (${gameStatus.ip})` : ""
+        }`}
+      >
+        📍 {gameStatus.location || gameStatus.ip}
+      </span>
+    );
 
     if (gameStatus.isPlaying) {
       return (
@@ -87,12 +113,14 @@ const Users: React.FC = () => {
             <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] px-1.5 py-0 font-medium">
               In-Game
             </Badge>
+            {platformBadge}
           </div>
           {gameStatus.lastGameName && (
-            <span className="text-xs font-semibold text-amber-300 mt-1 truncate max-w-[130px]">
+            <span className="text-xs font-semibold text-amber-300 mt-1 truncate max-w-[140px]">
               {gameStatus.lastGameName}
             </span>
           )}
+          {locationLine}
         </div>
       );
     }
@@ -105,9 +133,10 @@ const Users: React.FC = () => {
             <Badge className="bg-sky-500/20 text-sky-300 border border-sky-500/30 text-[11px] px-1.5 py-0 font-medium">
               Online
             </Badge>
+            {platformBadge}
           </div>
           <span
-            className="text-[11px] text-gray-400 mt-0.5 truncate max-w-[130px]"
+            className="text-[11px] text-gray-400 mt-0.5 truncate max-w-[140px]"
             title={gameStatus.lastGameName}
           >
             {gameStatus.lastGameName ? `${gameStatus.lastGameName} • ` : ""}
@@ -115,6 +144,7 @@ const Users: React.FC = () => {
               ? `${moment(gameStatus.lastActiveAt).fromNow(true)} ago`
               : "Active now"}
           </span>
+          {locationLine}
         </div>
       );
     }
@@ -125,19 +155,25 @@ const Users: React.FC = () => {
           <div className="flex items-center gap-1.5">
             <span className="inline-flex rounded-full h-2 w-2 bg-amber-500/70"></span>
             <span className="text-xs text-gray-300">Active</span>
+            {platformBadge}
           </div>
-          <span className="text-[11px] text-gray-400 mt-0.5 truncate max-w-[130px]" title={gameStatus.lastGameName}>
+          <span className="text-[11px] text-gray-400 mt-0.5 truncate max-w-[140px]" title={gameStatus.lastGameName}>
             {gameStatus.lastGameName ? `${gameStatus.lastGameName} • ` : ""}
             {moment(gameStatus.lastActiveAt).fromNow(true)} ago
           </span>
+          {locationLine}
         </div>
       );
     }
 
     return (
-      <div className="flex items-center gap-1.5">
-        <span className="inline-flex rounded-full h-2 w-2 bg-gray-600"></span>
-        <span className="text-xs text-gray-500">Offline</span>
+      <div className="flex flex-col">
+        <div className="flex items-center gap-1.5">
+          <span className="inline-flex rounded-full h-2 w-2 bg-gray-600"></span>
+          <span className="text-xs text-gray-500">Offline</span>
+          {gameStatus.ip && platformBadge}
+        </div>
+        {locationLine}
       </div>
     );
   };
