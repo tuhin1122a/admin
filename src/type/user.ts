@@ -28,6 +28,8 @@ export interface UserTableItem {
     totalBet: number;
     totalWin: number;
     winRate: number;
+    playerNetLoss?: number;
+    ggrDeducted?: number;
   } | null;
   financials: {
     totalDeposit: number;
@@ -42,6 +44,8 @@ export interface UserTableItem {
   };
   gameStatus: {
     isPlaying: boolean;
+    isOnline?: boolean;
+    platform?: string;
     lastGameName?: string;
     lastActiveAt?: string;
   };
@@ -57,6 +61,13 @@ export interface UsersFetchOutput {
   total: number;
   page: number;
   limit: number;
+  summary?: {
+    livePlayingCount: number;
+    onlineNowCount: number;
+    activeTodayCount: number;
+    totalPlayerNetLoss: number;
+    totalGgrDeducted: number;
+  };
   users: UserTableItem[];
 }
 

@@ -67,6 +67,8 @@ const Users: React.FC = () => {
 
   const renderGameStatus = (gameStatus?: {
     isPlaying: boolean;
+    isOnline?: boolean;
+    platform?: string;
     lastGameName?: string;
     lastActiveAt?: string;
   }) => {
@@ -95,14 +97,36 @@ const Users: React.FC = () => {
       );
     }
 
+    if (gameStatus.isOnline) {
+      return (
+        <div className="flex flex-col">
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex rounded-full h-2 w-2 bg-sky-400 animate-pulse"></span>
+            <Badge className="bg-sky-500/20 text-sky-300 border border-sky-500/30 text-[11px] px-1.5 py-0 font-medium">
+              Online
+            </Badge>
+          </div>
+          <span
+            className="text-[11px] text-gray-400 mt-0.5 truncate max-w-[130px]"
+            title={gameStatus.lastGameName}
+          >
+            {gameStatus.lastGameName ? `${gameStatus.lastGameName} • ` : ""}
+            {gameStatus.lastActiveAt
+              ? `${moment(gameStatus.lastActiveAt).fromNow(true)} ago`
+              : "Active now"}
+          </span>
+        </div>
+      );
+    }
+
     if (gameStatus.lastActiveAt) {
       return (
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5">
-            <span className="inline-flex rounded-full h-2 w-2 bg-gray-500"></span>
-            <span className="text-xs text-gray-400">Idle</span>
+            <span className="inline-flex rounded-full h-2 w-2 bg-amber-500/70"></span>
+            <span className="text-xs text-gray-300">Active</span>
           </div>
-          <span className="text-[11px] text-gray-500 mt-0.5 truncate max-w-[130px]" title={gameStatus.lastGameName}>
+          <span className="text-[11px] text-gray-400 mt-0.5 truncate max-w-[130px]" title={gameStatus.lastGameName}>
             {gameStatus.lastGameName ? `${gameStatus.lastGameName} • ` : ""}
             {moment(gameStatus.lastActiveAt).fromNow(true)} ago
           </span>
@@ -132,6 +156,7 @@ const Users: React.FC = () => {
                 <TableHead className="font-semibold text-gray-300">Deposits / Withdraws</TableHead>
                 <TableHead className="font-semibold text-gray-300">Bonuses (Daily/Ref/Spin)</TableHead>
                 <TableHead className="font-semibold text-gray-300">Total Bet & Win</TableHead>
+                <TableHead className="font-semibold text-gray-300">GGR Deducted & Loss</TableHead>
                 <TableHead className="font-semibold text-gray-300">Win Rate</TableHead>
                 <TableHead className="font-semibold text-gray-300">Account</TableHead>
                 <TableHead className="text-right font-semibold text-gray-300">Actions</TableHead>
@@ -227,6 +252,18 @@ const Users: React.FC = () => {
                         </span>
                         <span className="text-gray-400">
                           Win: <strong className="text-white">৳ {totalWin.toLocaleString()}</strong>
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    {/* GGR Deducted & Player Net Loss */}
+                    <TableCell>
+                      <div className="flex flex-col text-xs font-mono space-y-0.5">
+                        <span className="text-rose-400 font-bold">
+                          GGR: -৳ {(user.bettingRecord?.ggrDeducted ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          User Loss: ৳ {(user.bettingRecord?.playerNetLoss ?? Math.max(0, totalBet - totalWin)).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                         </span>
                       </div>
                     </TableCell>
@@ -413,7 +450,10 @@ const Users: React.FC = () => {
                 </SelectTrigger>
                 <SelectContent className="bg-gray-900 border-gray-800">
                   <SelectItem value="all">All Users</SelectItem>
-                  <SelectItem value="unbanned">Active Only</SelectItem>
+                  <SelectItem value="active">Active Users</SelectItem>
+                  <SelectItem value="playing">Live In-Game Now</SelectItem>
+                  <SelectItem value="top_ggr">Highest GGR Consumed</SelectItem>
+                  <SelectItem value="unbanned">Unbanned Only</SelectItem>
                   <SelectItem value="banned">Banned Only</SelectItem>
                 </SelectContent>
               </Select>

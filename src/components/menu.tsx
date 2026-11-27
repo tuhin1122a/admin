@@ -74,9 +74,22 @@ const getNavItems = (isSubAdmin: boolean) => {
       },
       {
         label: "My Players",
-        link: "/users",
         isActive: false,
         icon: HiMiniUsers,
+        subMenu: [
+          {
+            label: "All Players",
+            link: "/users",
+            isActive: false,
+            icon: HiMiniUsers,
+          },
+          {
+            label: "Active Users",
+            link: "/active-users",
+            isActive: false,
+            icon: IoGameController,
+          },
+        ],
       },
       {
         label: "Player Bet History",
@@ -167,6 +180,12 @@ const getNavItems = (isSubAdmin: boolean) => {
           link: "/users",
           isActive: false,
           icon: HiMiniUsers,
+        },
+        {
+          label: "Active Users",
+          link: "/active-users",
+          isActive: false,
+          icon: IoGameController,
         },
       ],
     },

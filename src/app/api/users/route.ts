@@ -1,7 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getRecentCallbackLogs, toNumericUserId } from "@/lib/softapi";
 import { auth } from "@/auth";
+
+function getCategoryGgrRate(category?: string | null, gameUid?: string | null, provider?: string | null): number {
+  const uid = String(gameUid || "").trim();
+  const prov = String(provider || "").trim().toUpperCase();
+  const cat = String(category || "").trim().toLowerCase();
+
+  if (uid === "11539" || prov === "9W" || prov.includes("9WICKET")) {
+    return 0.135; // 13.5% for 9Wicket
+  }
+  if (prov.includes("IG ORIGINAL") || cat.includes("original")) {
+    return 0; // 0%
+  }
+  if (cat.includes("live") || prov.includes("EVOLUTION") || prov.includes("EZUGI")) {
+    return 0.08; // 8% Live Casino
+  }
+  if (cat.includes("sport")) {
+    return 0.07; // 7% Sports
+  }
+  if (cat.includes("crash") || cat.includes("arcade") || cat.includes("table") || cat.includes("fish")) {
+    return 0.065; // 6.5% Other / Crash / Table
+  }
+  return 0.06; // 6% Slots default
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,14 +34,13 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
 
     // Filters
-    const status = searchParams.get("status") || "all"; // banned | unbanned | all
+    const status = searchParams.get("status") || "all"; // banned | unbanned | active | playing | today | top_ggr | all
     const search = searchParams.get("search") || "";
     const agentFilter = searchParams.get("agentId");
 
     // Pagination
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = parseInt(searchParams.get("limit") || "10", 10);
-    const skip = (page - 1) * limit;
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = Math.max(1, parseInt(searchParams.get("limit") || "10", 10));
 
     // Where clause
     const where: any = {};
@@ -44,10 +65,9 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    // Total count for pagination
-    const total = await db.user.count({ where });
+    const isActivityFilter = ["active", "playing", "today", "top_ggr"].includes(status);
 
-    // Fetch paginated users with wallet and bettingRecord
+    // Fetch users matching base filter
     const rawUsers = await db.user.findMany({
       where,
       select: {
@@ -85,54 +105,87 @@ export async function GET(req: NextRequest) {
       orderBy: {
         createdAt: "desc",
       },
-      skip,
-      take: limit,
+      ...(isActivityFilter ? {} : { skip: (page - 1) * limit, take: limit }),
     });
 
-    const userIds = rawUsers.map((u) => u.id);
+    const totalBaseCount = isActivityFilter
+      ? rawUsers.length
+      : await db.user.count({ where });
 
-    // Aggregate deposits, withdraws, and bonuses in parallel for these users
-    const [depositSums, withdrawSums, signinList, inviteList, spinSums] =
-      await Promise.all([
-        db.deposit.groupBy({
-          by: ["userId"],
-          where: {
-            userId: { in: userIds },
-            status: "APPROVED",
+    const userIds = rawUsers.map((u) => u.id);
+    const sessionKeys = userIds.map((id) => `active_session:${id}`);
+
+    // Aggregate deposits, withdraws, bonuses, bet history & active sessions in parallel
+    const [
+      depositSums,
+      withdrawSums,
+      signinList,
+      inviteList,
+      spinSums,
+      userBets,
+      activeSessionRows,
+    ] = await Promise.all([
+      db.deposit.groupBy({
+        by: ["userId"],
+        where: {
+          userId: { in: userIds },
+          status: "APPROVED",
+        },
+        _sum: { amount: true },
+      }),
+      db.withdraw.groupBy({
+        by: ["userId"],
+        where: {
+          userId: { in: userIds },
+          status: "APPROVED",
+        },
+        _sum: { amount: true },
+      }),
+      db.claimedSigninReward
+        .findMany({
+          where: { userId: { in: userIds } },
+          select: { userId: true, reward: { select: { prize: true } } },
+        })
+        .catch(() => []),
+      db.claimedInvitationReward
+        .findMany({
+          where: { invitationBonus: { userId: { in: userIds } } },
+          select: {
+            invitationBonus: { select: { userId: true } },
+            reward: { select: { prize: true } },
           },
-          _sum: { amount: true },
-        }),
-        db.withdraw.groupBy({
+        })
+        .catch(() => []),
+      db.luckyWheelSpin
+        .groupBy({
           by: ["userId"],
-          where: {
-            userId: { in: userIds },
-            status: "APPROVED",
+          where: { userId: { in: userIds } },
+          _sum: { prizeValue: true },
+        })
+        .catch(() => []),
+      db.betHistory
+        .findMany({
+          where: { userId: { in: userIds } },
+          select: {
+            userId: true,
+            gameName: true,
+            gameUid: true,
+            provider: true,
+            category: true,
+            betAmount: true,
+            winAmount: true,
+            createdAt: true,
           },
-          _sum: { amount: true },
-        }),
-        db.claimedSigninReward
-          .findMany({
-            where: { userId: { in: userIds } },
-            select: { userId: true, reward: { select: { prize: true } } },
-          })
-          .catch(() => []),
-        db.claimedInvitationReward
-          .findMany({
-            where: { invitationBonus: { userId: { in: userIds } } },
-            select: {
-              invitationBonus: { select: { userId: true } },
-              reward: { select: { prize: true } },
-            },
-          })
-          .catch(() => []),
-        db.luckyWheelSpin
-          .groupBy({
-            by: ["userId"],
-            where: { userId: { in: userIds } },
-            _sum: { prizeValue: true },
-          })
-          .catch(() => []),
-      ]);
+          orderBy: { createdAt: "desc" },
+        })
+        .catch(() => []),
+      db.siteConfig
+        .findMany({
+          where: { key: { in: sessionKeys } },
+          select: { key: true, value: true },
+        })
+        .catch(() => []),
+    ]);
 
     const depositMap = new Map<string, number>();
     for (const d of depositSums) {
@@ -169,20 +222,95 @@ export async function GET(req: NextRequest) {
       spinBonusMap.set(s.userId, Number(s._sum?.prizeValue ?? 0));
     }
 
-    // Read recent SoftAPI callback logs to check for active in-game sessions
-    const recentLogs = getRecentCallbackLogs();
-    const fifteenMinutesAgo = Date.now() - 15 * 60 * 1000;
+    // Map active_session:<userId> from SiteConfig
+    const sessionMap = new Map<
+      string,
+      { updatedAt: number; platform: string }
+    >();
+    for (const row of activeSessionRows) {
+      const uid = row.key.replace("active_session:", "");
+      try {
+        const parsed = JSON.parse(row.value);
+        if (parsed?.updatedAt) {
+          sessionMap.set(uid, {
+            updatedAt: Number(parsed.updatedAt),
+            platform: parsed.platform || "web",
+          });
+        }
+      } catch {
+        // ignore invalid json
+      }
+    }
 
-    const formattedUsers = rawUsers.map((user) => {
-      // If user is banned, their balance is considered 0 and not counted
+    // Aggregate per-user latest bet & exact GGR deduction from BetHistory
+    const latestBetMap = new Map<
+      string,
+      { gameName: string; createdAt: Date }
+    >();
+    const userGgrFromBetsMap = new Map<string, number>();
+    const userBetSumFromHistoryMap = new Map<string, number>();
+    const userWinSumFromHistoryMap = new Map<string, number>();
+
+    for (const bet of userBets) {
+      const uid = bet.userId;
+      if (!latestBetMap.has(uid)) {
+        latestBetMap.set(uid, {
+          gameName: bet.gameName || `Game #${bet.gameUid}`,
+          createdAt: bet.createdAt,
+        });
+      }
+
+      const bAmt = Number(bet.betAmount ?? 0);
+      const wAmt = Number(bet.winAmount ?? 0);
+      userBetSumFromHistoryMap.set(
+        uid,
+        (userBetSumFromHistoryMap.get(uid) ?? 0) + bAmt
+      );
+      userWinSumFromHistoryMap.set(
+        uid,
+        (userWinSumFromHistoryMap.get(uid) ?? 0) + wAmt
+      );
+
+      // GGR is deducted on net loss rounds (when betAmount > winAmount)
+      if (bAmt > wAmt) {
+        const lossAmt = bAmt - wAmt;
+        const rate = getCategoryGgrRate(bet.category, bet.gameUid, bet.provider);
+        userGgrFromBetsMap.set(
+          uid,
+          (userGgrFromBetsMap.get(uid) ?? 0) + lossAmt * rate
+        );
+      }
+    }
+
+    const nowMs = Date.now();
+    const fifteenMinutesAgo = nowMs - 15 * 60 * 1000;
+    const thirtyMinutesAgo = nowMs - 30 * 60 * 1000;
+    const twentyFourHoursAgo = nowMs - 24 * 60 * 60 * 1000;
+
+    let formattedUsers = rawUsers.map((user) => {
       const balance = user.isBanned ? 0 : Number(user.wallet?.balance ?? 0);
       const currency = user.wallet?.currency || "BDT";
       const turnOver = Number(user.wallet?.turnOver ?? 0);
 
-      const totalBet = Number(user.bettingRecord?.totalBet ?? 0);
-      const totalWin = Number(user.bettingRecord?.totalWin ?? 0);
+      const recordBet = Number(user.bettingRecord?.totalBet ?? 0);
+      const recordWin = Number(user.bettingRecord?.totalWin ?? 0);
+      const historyBet = userBetSumFromHistoryMap.get(user.id) ?? 0;
+      const historyWin = userWinSumFromHistoryMap.get(user.id) ?? 0;
+
+      const totalBet = Math.max(recordBet, historyBet);
+      const totalWin = Math.max(recordWin, historyWin);
       const winRate =
         totalBet > 0 ? Number(((totalWin / totalBet) * 100).toFixed(2)) : 0;
+
+      // Net amount the player lost in games
+      const playerNetLoss = Number(Math.max(0, totalBet - totalWin).toFixed(2));
+
+      // Exact GGR deducted from SoftAPI GGR wallet by this user
+      const ggrFromHistory = userGgrFromBetsMap.get(user.id) ?? 0;
+      const fallbackGgr = playerNetLoss * 0.06;
+      const ggrDeducted = Number(
+        Math.max(ggrFromHistory, fallbackGgr).toFixed(2)
+      );
 
       const totalDeposit = depositMap.get(user.id) ?? 0;
       const totalWithdraw = withdrawMap.get(user.id) ?? 0;
@@ -193,30 +321,24 @@ export async function GET(req: NextRequest) {
       const spinBonus = spinBonusMap.get(user.id) ?? 0;
       const totalBonuses = dailyBonus + referralBonus + spinBonus;
 
-      // Check if user has active game activity in recent callbacks
-      const numUserId = toNumericUserId(user.playerId || user.id);
-      const matchedLog = recentLogs.find((l) => {
-        const memAcc = String(l.member_account).trim();
-        return (
-          memAcc === user.playerId ||
-          memAcc === user.id ||
-          memAcc === user.phone ||
-          memAcc === String(numUserId)
-        );
-      });
+      // Determine real live game & online status from BetHistory + SiteConfig active_session
+      const latestBet = latestBetMap.get(user.id);
+      const activeSess = sessionMap.get(user.id);
 
-      let isPlaying = false;
-      let lastGameName: string | undefined = undefined;
-      let lastActiveAt: string | undefined = undefined;
+      const betTimeMs = latestBet
+        ? new Date(latestBet.createdAt).getTime()
+        : 0;
+      const sessTimeMs = activeSess?.updatedAt ?? 0;
+      const latestActivityMs = Math.max(betTimeMs, sessTimeMs);
 
-      if (matchedLog) {
-        lastGameName = matchedLog.game_name || `Game #${matchedLog.game_uid}`;
-        lastActiveAt = matchedLog.receivedAt;
-        const logTime = new Date(matchedLog.receivedAt).getTime();
-        if (logTime >= fifteenMinutesAgo) {
-          isPlaying = true;
-        }
-      }
+      const isPlaying = betTimeMs >= fifteenMinutesAgo;
+      const isOnline =
+        isPlaying || sessTimeMs >= thirtyMinutesAgo || betTimeMs >= thirtyMinutesAgo;
+      const lastGameName = latestBet?.gameName;
+      const lastActiveAt =
+        latestActivityMs > 0
+          ? new Date(latestActivityMs).toISOString()
+          : undefined;
 
       return {
         id: user.id,
@@ -237,6 +359,8 @@ export async function GET(req: NextRequest) {
           totalBet,
           totalWin,
           winRate,
+          playerNetLoss,
+          ggrDeducted,
         },
         financials: {
           totalDeposit,
@@ -251,6 +375,8 @@ export async function GET(req: NextRequest) {
         },
         gameStatus: {
           isPlaying,
+          isOnline,
+          platform: activeSess?.platform || "web",
           lastGameName,
           lastActiveAt,
         },
@@ -264,12 +390,85 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    // Compute global active summary across fetched users
+    let livePlayingCount = 0;
+    let onlineNowCount = 0;
+    let activeTodayCount = 0;
+    let totalPlayerNetLoss = 0;
+    let totalGgrDeducted = 0;
+
+    for (const u of formattedUsers) {
+      totalPlayerNetLoss += u.bettingRecord.playerNetLoss ?? 0;
+      totalGgrDeducted += u.bettingRecord.ggrDeducted ?? 0;
+      if (u.gameStatus.isPlaying) livePlayingCount++;
+      if (u.gameStatus.isOnline) onlineNowCount++;
+      if (
+        u.gameStatus.lastActiveAt &&
+        new Date(u.gameStatus.lastActiveAt).getTime() >= twentyFourHoursAgo
+      ) {
+        activeTodayCount++;
+      }
+    }
+
+    // Apply activity filter if requested
+    if (status === "playing") {
+      formattedUsers = formattedUsers.filter((u) => u.gameStatus.isPlaying);
+    } else if (status === "active") {
+      formattedUsers = formattedUsers.filter(
+        (u) => u.gameStatus.isOnline || Boolean(u.gameStatus.lastActiveAt)
+      );
+      formattedUsers.sort((a, b) => {
+        const tA = a.gameStatus.lastActiveAt
+          ? new Date(a.gameStatus.lastActiveAt).getTime()
+          : 0;
+        const tB = b.gameStatus.lastActiveAt
+          ? new Date(b.gameStatus.lastActiveAt).getTime()
+          : 0;
+        return tB - tA;
+      });
+    } else if (status === "today") {
+      formattedUsers = formattedUsers.filter(
+        (u) =>
+          u.gameStatus.lastActiveAt &&
+          new Date(u.gameStatus.lastActiveAt).getTime() >= twentyFourHoursAgo
+      );
+      formattedUsers.sort((a, b) => {
+        const tA = a.gameStatus.lastActiveAt
+          ? new Date(a.gameStatus.lastActiveAt).getTime()
+          : 0;
+        const tB = b.gameStatus.lastActiveAt
+          ? new Date(b.gameStatus.lastActiveAt).getTime()
+          : 0;
+        return tB - tA;
+      });
+    } else if (status === "top_ggr") {
+      formattedUsers = formattedUsers.filter(
+        (u) => (u.bettingRecord.ggrDeducted ?? 0) > 0 || u.bettingRecord.totalBet > 0
+      );
+      formattedUsers.sort(
+        (a, b) =>
+          (b.bettingRecord.ggrDeducted ?? 0) - (a.bettingRecord.ggrDeducted ?? 0)
+      );
+    }
+
+    const finalTotal = isActivityFilter ? formattedUsers.length : totalBaseCount;
+    const paginatedUsers = isActivityFilter
+      ? formattedUsers.slice((page - 1) * limit, page * limit)
+      : formattedUsers;
+
     return NextResponse.json({
       success: true,
-      total,
+      total: finalTotal,
       page: +page,
       limit: +limit,
-      users: formattedUsers,
+      summary: {
+        livePlayingCount,
+        onlineNowCount,
+        activeTodayCount,
+        totalPlayerNetLoss: Number(totalPlayerNetLoss.toFixed(2)),
+        totalGgrDeducted: Number(totalGgrDeducted.toFixed(2)),
+      },
+      users: paginatedUsers,
     });
   } catch (error) {
     console.error("Error fetching users:", error);
