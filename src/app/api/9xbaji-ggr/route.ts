@@ -18,6 +18,8 @@ const KEY_ALLOCATED = "CUSTOM_GGR_ALLOCATED_TOTAL";
 const KEY_RATE = "CUSTOM_GGR_RATE_PERCENT";
 const KEY_PAUSED = "CUSTOM_GGR_PAUSE_GAMES";
 const KEY_LEDGER = "CUSTOM_GGR_LEDGER_HISTORY";
+const KEY_PAYMENT_METHODS = "CUSTOM_GGR_PAYMENT_METHODS";
+const KEY_RECHARGE_REQUESTS = "CUSTOM_GGR_RECHARGE_REQUESTS";
 
 async function read9xBajiState() {
   const db9x = get9xBajiDb();
@@ -27,7 +29,16 @@ async function read9xBajiState() {
       db9x.siteConfig
         .findMany({
           where: {
-            key: { in: [KEY_ALLOCATED, KEY_RATE, KEY_PAUSED, KEY_LEDGER] },
+            key: {
+              in: [
+                KEY_ALLOCATED,
+                KEY_RATE,
+                KEY_PAUSED,
+                KEY_LEDGER,
+                KEY_PAYMENT_METHODS,
+                KEY_RECHARGE_REQUESTS,
+              ],
+            },
           },
         })
         .catch(() => []),
@@ -73,6 +84,28 @@ async function read9xBajiState() {
       if (Array.isArray(parsed)) ledger = parsed;
     } catch {
       ledger = [];
+    }
+  }
+
+  let paymentMethods: any[] = [];
+  const rawMethods = cfgMap.get(KEY_PAYMENT_METHODS);
+  if (rawMethods) {
+    try {
+      const parsed = JSON.parse(rawMethods);
+      if (Array.isArray(parsed)) paymentMethods = parsed;
+    } catch {
+      paymentMethods = [];
+    }
+  }
+
+  let rechargeRequests: any[] = [];
+  const rawRequests = cfgMap.get(KEY_RECHARGE_REQUESTS);
+  if (rawRequests) {
+    try {
+      const parsed = JSON.parse(rawRequests);
+      if (Array.isArray(parsed)) rechargeRequests = parsed;
+    } catch {
+      rechargeRequests = [];
     }
   }
 
@@ -122,6 +155,8 @@ async function read9xBajiState() {
       totalWithdraws,
     },
     ledger,
+    paymentMethods,
+    rechargeRequests,
   };
 }
 
@@ -204,6 +239,151 @@ export async function POST(req: NextRequest) {
         message: `9xBaji GGR deduction rate updated to ${nextRate}%`,
         ...updated,
       });
+    }
+
+    if (action === "SAVE_METHOD") {
+      const methodName = String(body.methodName || "").trim();
+      const accountNumber = String(body.accountNumber || "").trim();
+      const accountType = String(body.accountType || "Personal").trim();
+      const instructions = String(body.instructions || "").trim();
+      const isActive = body.isActive !== false;
+
+      if (!methodName || !accountNumber) {
+        return NextResponse.json(
+          { error: "Method name and account number are required." },
+          { status: 400 }
+        );
+      }
+
+      const newMethod = {
+        id: `PM-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+        methodName,
+        accountNumber,
+        accountType,
+        instructions,
+        isActive,
+      };
+      const nextMethods = [newMethod, ...current.paymentMethods];
+
+      await db9x.siteConfig.upsert({
+        where: { key: KEY_PAYMENT_METHODS },
+        update: { value: JSON.stringify(nextMethods) },
+        create: { key: KEY_PAYMENT_METHODS, value: JSON.stringify(nextMethods) },
+      });
+
+      const updated = await read9xBajiState();
+      return NextResponse.json({
+        success: true,
+        message: `${methodName} (${accountNumber}) added for 9xBaji GGR recharge!`,
+        ...updated,
+      });
+    }
+
+    if (action === "DELETE_METHOD") {
+      const id = String(body.id || "").trim();
+      const nextMethods = current.paymentMethods.filter((m: any) => m.id !== id);
+      await db9x.siteConfig.upsert({
+        where: { key: KEY_PAYMENT_METHODS },
+        update: { value: JSON.stringify(nextMethods) },
+        create: { key: KEY_PAYMENT_METHODS, value: JSON.stringify(nextMethods) },
+      });
+      const updated = await read9xBajiState();
+      return NextResponse.json({
+        success: true,
+        message: "Payment method removed.",
+        ...updated,
+      });
+    }
+
+    if (action === "REVIEW_REQUEST") {
+      const requestId = String(body.requestId || "").trim();
+      const decision = String(body.decision || "").toUpperCase();
+      const rejectReason = String(body.rejectReason || "").trim();
+
+      const requests = [...current.rechargeRequests];
+      const idx = requests.findIndex((r: any) => r.id === requestId);
+      if (idx < 0) {
+        return NextResponse.json(
+          { error: "Recharge request not found." },
+          { status: 404 }
+        );
+      }
+      if (requests[idx].status !== "PENDING") {
+        return NextResponse.json(
+          { error: "This request has already been processed." },
+          { status: 400 }
+        );
+      }
+
+      if (decision === "APPROVED") {
+        const reqItem = requests[idx];
+        const nextAllocated = Number(
+          (current.allocatedCredit + Number(reqItem.amount)).toFixed(2)
+        );
+        requests[idx] = {
+          ...reqItem,
+          status: "APPROVED",
+          reviewedAt: new Date().toISOString(),
+          reviewedBy: adminName,
+        };
+        const newEntry: CustomGgrLedgerEntry = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          type: "ADD",
+          amount: Number(reqItem.amount),
+          note: `Approved 9xBaji GGR Recharge (${reqItem.methodName} • TrxID: ${reqItem.trxId})`,
+          createdBy: adminName,
+          createdAt: new Date().toISOString(),
+        };
+        const nextLedger = [newEntry, ...current.ledger].slice(0, 200);
+
+        await Promise.all([
+          db9x.siteConfig.upsert({
+            where: { key: KEY_ALLOCATED },
+            update: { value: String(nextAllocated) },
+            create: { key: KEY_ALLOCATED, value: String(nextAllocated) },
+          }),
+          db9x.siteConfig.upsert({
+            where: { key: KEY_LEDGER },
+            update: { value: JSON.stringify(nextLedger) },
+            create: { key: KEY_LEDGER, value: JSON.stringify(nextLedger) },
+          }),
+          db9x.siteConfig.upsert({
+            where: { key: KEY_RECHARGE_REQUESTS },
+            update: { value: JSON.stringify(requests) },
+            create: { key: KEY_RECHARGE_REQUESTS, value: JSON.stringify(requests) },
+          }),
+        ]);
+
+        const updated = await read9xBajiState();
+        return NextResponse.json({
+          success: true,
+          message: `Approved ৳${Number(reqItem.amount).toLocaleString()} GGR recharge for 9xBaji!`,
+          ...updated,
+        });
+      }
+
+      if (decision === "REJECTED") {
+        requests[idx] = {
+          ...requests[idx],
+          status: "REJECTED",
+          rejectReason: rejectReason || "Invalid TrxID or payment not received",
+          reviewedAt: new Date().toISOString(),
+          reviewedBy: adminName,
+        };
+        await db9x.siteConfig.upsert({
+          where: { key: KEY_RECHARGE_REQUESTS },
+          update: { value: JSON.stringify(requests) },
+          create: { key: KEY_RECHARGE_REQUESTS, value: JSON.stringify(requests) },
+        });
+        const updated = await read9xBajiState();
+        return NextResponse.json({
+          success: true,
+          message: "GGR recharge request rejected.",
+          ...updated,
+        });
+      }
+
+      return NextResponse.json({ error: "Invalid decision" }, { status: 400 });
     }
 
     if (!Number.isFinite(amount) || amount <= 0) {

@@ -34,14 +34,17 @@ import {
 } from "@/components/ui/table";
 import {
   Coins,
+  Check,
   Flame,
   MinusCircle,
   PlusCircle,
   RefreshCw,
   ShieldAlert,
+  Trash2,
   TrendingDown,
   TrendingUp,
   Wallet,
+  X,
 } from "lucide-react";
 
 const fmtTk = (n: number | null | undefined) =>
@@ -61,6 +64,12 @@ export default function NineXBajiGgrControlPage() {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [rateInput, setRateInput] = useState("17");
+
+  // Payment method & number state for 9xBaji GGR recharge
+  const [methodName, setMethodName] = useState("bKash");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [accountType, setAccountType] = useState("Agent");
+  const [methodInstructions, setMethodInstructions] = useState("Send Money / Cash Out only");
 
   const fetchState = useCallback(async (silent = false) => {
     try {
@@ -513,6 +522,263 @@ export default function NineXBajiGgrControlPage() {
                     {fmtTk(data?.siteStats?.totalWithdraws)}
                   </strong>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Payment Methods & Recharge Requests for 9xBaji */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Set Payment Methods & Numbers */}
+          <Card className="bg-gray-900/90 border-gray-800">
+            <CardHeader>
+              <CardTitle className="text-base sm:text-lg text-white flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-emerald-400" />
+                GGR Recharge Methods &amp; Numbers
+              </CardTitle>
+              <CardDescription className="text-xs text-gray-400">
+                Add payment methods and numbers here. 9xBaji Admin will see these numbers when recharging GGR.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-gray-300">Method Name</Label>
+                  <Input
+                    value={methodName}
+                    onChange={(e) => setMethodName(e.target.value)}
+                    placeholder="bKash / Nagad / USDT"
+                    className="mt-1 bg-gray-950 border-gray-800 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-300">Account Type</Label>
+                  <Input
+                    value={accountType}
+                    onChange={(e) => setAccountType(e.target.value)}
+                    placeholder="Agent / Personal / TRC20"
+                    className="mt-1 bg-gray-950 border-gray-800 text-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-gray-300">Account / Wallet Number *</Label>
+                <Input
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  placeholder="017XXXXXXXX"
+                  className="mt-1 bg-gray-950 border-gray-800 text-white font-mono"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-300">Instructions</Label>
+                <Input
+                  value={methodInstructions}
+                  onChange={(e) => setMethodInstructions(e.target.value)}
+                  placeholder="Send Money / Cash Out only"
+                  className="mt-1 bg-gray-950 border-gray-800 text-white"
+                />
+              </div>
+              <Button
+                type="button"
+                disabled={submitting}
+                onClick={async () => {
+                  if (!methodName.trim() || !accountNumber.trim()) {
+                    toast.error("Method name and account number are required");
+                    return;
+                  }
+                  setSubmitting(true);
+                  try {
+                    const res = await fetch("/api/9xbaji-ggr", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        action: "SAVE_METHOD",
+                        methodName: methodName.trim(),
+                        accountNumber: accountNumber.trim(),
+                        accountType: accountType.trim(),
+                        instructions: methodInstructions.trim(),
+                      }),
+                    });
+                    const json = await res.json();
+                    if (res.ok && json?.success) {
+                      setData(json);
+                      setAccountNumber("");
+                      toast.success(json.message || "Method added!");
+                    } else {
+                      toast.error(json?.error || "Failed to save method");
+                    }
+                  } finally {
+                    setSubmitting(false);
+                  }
+                }}
+                className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Add Payment Method &amp; Number
+              </Button>
+
+              <div className="space-y-2 pt-2 border-t border-gray-800">
+                <p className="text-xs font-semibold text-gray-400">
+                  Active Methods on 9xBaji ({data?.paymentMethods?.length ?? 0})
+                </p>
+                {(data?.paymentMethods || []).map((m: any) => (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-950 p-2.5"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {m.methodName}{" "}
+                        <span className="text-xs text-gray-400">({m.accountType})</span>
+                      </p>
+                      <p className="text-xs font-mono text-emerald-400">{m.accountNumber}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={submitting}
+                      onClick={async () => {
+                        setSubmitting(true);
+                        try {
+                          const res = await fetch("/api/9xbaji-ggr", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "DELETE_METHOD", id: m.id }),
+                          });
+                          const json = await res.json();
+                          if (res.ok && json?.success) {
+                            setData(json);
+                            toast.success("Method removed");
+                          }
+                        } finally {
+                          setSubmitting(false);
+                        }
+                      }}
+                      className="border-rose-500/40 text-rose-400 hover:bg-rose-500/10 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 9xBaji GGR Recharge Requests */}
+          <Card className="bg-gray-900/90 border-gray-800">
+            <CardHeader>
+              <CardTitle className="text-base sm:text-lg text-white">
+                9xBaji GGR Recharge Requests
+              </CardTitle>
+              <CardDescription className="text-xs text-gray-400">
+                Approve or reject GGR recharge requests submitted by 9xBaji Admin.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto border border-gray-800 rounded-xl bg-gray-950/60">
+                <Table>
+                  <TableHeader className="bg-gray-900/90 border-b border-gray-800">
+                    <TableRow className="border-gray-800">
+                      <TableHead className="text-gray-300">Method / Number</TableHead>
+                      <TableHead className="text-gray-300">TrxID</TableHead>
+                      <TableHead className="text-gray-300">Amount</TableHead>
+                      <TableHead className="text-gray-300">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(data?.rechargeRequests || []).map((r: any) => (
+                      <TableRow key={r.id} className="border-gray-800/80">
+                        <TableCell className="text-xs text-white">
+                          <div className="font-semibold">{r.methodName}</div>
+                          <div className="text-gray-400 font-mono">{r.accountNumber}</div>
+                        </TableCell>
+                        <TableCell className="text-xs font-mono text-amber-300">
+                          {r.trxId}
+                        </TableCell>
+                        <TableCell className="font-mono font-bold text-emerald-400">
+                          {fmtTk(r.amount)}
+                        </TableCell>
+                        <TableCell>
+                          {r.status === "PENDING" ? (
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                size="sm"
+                                disabled={submitting}
+                                onClick={async () => {
+                                  setSubmitting(true);
+                                  try {
+                                    const res = await fetch("/api/9xbaji-ggr", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        action: "REVIEW_REQUEST",
+                                        requestId: r.id,
+                                        decision: "APPROVED",
+                                      }),
+                                    });
+                                    const json = await res.json();
+                                    if (res.ok && json?.success) {
+                                      setData(json);
+                                      toast.success(json.message);
+                                    } else {
+                                      toast.error(json?.error || "Failed");
+                                    }
+                                  } finally {
+                                    setSubmitting(false);
+                                  }
+                                }}
+                                className="bg-emerald-500 hover:bg-emerald-600 text-black h-7 px-2 text-xs cursor-pointer"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={submitting}
+                                onClick={async () => {
+                                  setSubmitting(true);
+                                  try {
+                                    const res = await fetch("/api/9xbaji-ggr", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        action: "REVIEW_REQUEST",
+                                        requestId: r.id,
+                                        decision: "REJECTED",
+                                      }),
+                                    });
+                                    const json = await res.json();
+                                    if (res.ok && json?.success) {
+                                      setData(json);
+                                      toast.success(json.message);
+                                    }
+                                  } finally {
+                                    setSubmitting(false);
+                                  }
+                                }}
+                                className="border-rose-500/40 text-rose-400 hover:bg-rose-500/10 h-7 px-2 text-xs cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px]">
+                              {r.status}
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {(!data?.rechargeRequests || data.rechargeRequests.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-6 text-gray-500 text-xs">
+                          No GGR recharge requests from 9xBaji yet.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
