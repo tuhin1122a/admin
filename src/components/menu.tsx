@@ -282,6 +282,12 @@ const getNavItems = (isSubAdmin: boolean) => {
       icon: IoMdCode,
     },
     {
+      label: "SoftAPI Response Logs",
+      link: "/softapi-logs",
+      isActive: false,
+      icon: IoMdCode,
+    },
+    {
       label: "Support Line",
       link: "/support",
       isActive: false,

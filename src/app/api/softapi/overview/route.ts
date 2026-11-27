@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
 import {
   getSoftApiConfig,
   saveSoftApiConfig,
@@ -46,7 +47,33 @@ export async function GET() {
       }
     }
 
-    const recentCallbacks = getRecentCallbackLogs();
+    const localCallbacks = getRecentCallbackLogs();
+    const dbCallbacks = await db.betHistory
+      .findMany({
+        take: 40,
+        orderBy: { createdAt: "desc" },
+        include: {
+          user: { select: { phone: true } },
+        },
+      })
+      .catch(() => []);
+
+    const dbFormatted = dbCallbacks.map((b) => ({
+      serial_number: b.serialNumber,
+      member_account: b.user?.phone || b.memberAccount,
+      game_uid: b.gameUid,
+      game_name: b.gameName || `Game #${b.gameUid}`,
+      game_round: b.gameRound || b.serialNumber,
+      bet_amount: Number(b.betAmount ?? 0),
+      win_amount: Number(b.winAmount ?? 0),
+      credit_amount: Number(b.creditAmount ?? 0),
+      free_spin_bonus: b.freeSpinBonus || undefined,
+      receivedAt: new Date(b.createdAt).toISOString(),
+      status: "PROCESSED",
+    }));
+
+    const recentCallbacks =
+      dbFormatted.length > 0 ? dbFormatted : localCallbacks;
 
     return NextResponse.json({
       config: {
